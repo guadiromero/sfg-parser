@@ -91,21 +91,24 @@ def parse_data(data_dir, data_files):
     return data
 
 
-def traverse_tree(tree, end, linearized_tree):
-#    if tree.tag == 'Constituent':
-#        print(tree.tag, tree.attrib)
-#        linearized_tree += '(' + tree.get('type')
-    if tree.get('id') == end:
-        print(linearized_tree)
-        return linearized_tree
-    else:
-        if tree.tag == 'Constituent':
-            linearized_tree += '('
-            linearized_tree += tree.get('type')
-            print(tree.tag, tree.attrib)
-            print(linearized_tree)
-        for child in list(tree):
-            traverse_tree(child, end, linearized_tree)
+
+def traverse_tree(node):
+
+    linearized_tree = ''
+    stack = []
+    stack.append(node)
+    while len(stack) > 0:
+        node = stack.pop()
+        if node == ')':
+            linearized_tree += ')'
+        else:
+            if node.tag == 'Constituent':
+                linearized_tree += '(' + node.get('type')
+            for child in reversed(list(node)): 
+                if child.tag == 'Constituent':
+                    stack.append(')')           
+                stack.append(child)
+    print(linearized_tree)
 
 
 
@@ -131,7 +134,7 @@ def xml_to_berkeley(input_dir):
             if node.get('type') == 'Clause_Complex':
                 # get the last node of the grammar
                 end = node.findall('.//Constituent')[-1].get('id') 
-                linearized_tree = traverse_tree(node, end, linearized_tree='') 
+                traverse_tree(node) 
 
                 break
         break 
