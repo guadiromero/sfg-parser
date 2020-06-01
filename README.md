@@ -1,63 +1,51 @@
 # A Systemic Functional Grammar Parser
 
-## Base groups
+## Constituency parsing
 
-### Data
+### Preprocessing
 
-The data was split into training and testing sets, using a 80:20 ratio. Annotations correspond to four base groups: Adverbial_Group, Conjunction_Group, Nominal_Group and Verbal_Group. 
-
-The embedded structure of this layer was simplified by considering only low-level base groups. For example, for the sentence "This is harder than I thought", there is a Nominal_Group "harder than I thought" and an embedded Verbal_Group "I thought". Only the lower-level group "I thought" is considered in this case. This simplification was necessary because the NER model used in this experiment cannot handle embedded entities. In next experiments, we could try something like the "Multi-grained Named Entity Recognition" (Congying et al, 2019) approach, if it is important to keep this embedded structure. 
-
-Another problem in the data is that whenever a word is of type="Ellipsis", it has a ConstituentRef attribute indicating the constituent to which it makes reference, but it has no StringRef attribute from which to infer the position of the word in the text. Without this information, I cannot find a way to extract the text of base groups that contain only type="Ellipsis" elements. For this reason, I simply skipped such groups for now.
-
-### Experiment results
-
-For this experiment, spaCy's NER model was trained with the following parameters:
-
-Epochs = 100 
-
-Batches = starting with a size of 4.0, and increasing size with a 1.001 factor until reaching 32.0
-
-Results:
-
-|                   | Precision         | Recall            | F1                |
-|-------------------|-------------------|-------------------|-------------------|
-| All               | 92.45114328665242 | 93.52184596175857 | 92.98341244484409 |
-| Adverbial_Group   | 84.18502891076731 | 87.15418217116971 | 85.64387917329094 |
-| Conjunction_Group | 90.78341013824884 | 87.81575037147103 | 89.27492447129909 |
-| Nominal_Group     | 92.47136250888104 | 93.67873423156087 | 93.0711328566052  |
-| Verbal_Group      | 94.31948036326457 | 95.51143457474345 | 94.91171531024466 |
-
-### How to reproduce the results
-
-#### Parse the data
-
-This step is not necessary, as train_data.json and test_data.json are provided in this repository. These are the instructions if you want to parse the data from scratch.
+The SFG data was converted from XML to the Berkeley Parser format by linearizing the trees with first-depth search. Sentences that exceeded the maximum sequence length allowed by BERT (512) were deleted (185 out of 167066). Type this command line if you want to convert the data yourself.
 
 Usage:
 
 ```
-python parse_data.py -data_dir 'path to the directory containing the XML data files'
+python xml_to_bkl.py -input_dir 'path to the directory containing the XML data files to convert' -output_dir 'path to the directory where to save the converted data files'
 ```
 
 Example:
 
 ```
-python parse_data.py -data_dir sfgbank
+python xml_to_bkl.py -input_dir /sfgbank -output_dir /sfgbank-bkl
 ```
 
-#### Run the NER model 
+The files were concatenated in three groups: 80% of the files for training, 10% for development and 10% for testing. Type this command line if you want to split the data yourself.
 
 Usage:
 
 ```
-python ner.py -train_data 'path to the file containing the training data' -test_data 'path to the file containing the testing data'
+python build_dataset.py -input_dir 'path to the directory containing the data files' -output_dir 'path to the directory where to save the train/dev/test datasets' --dev_size 'int representing the size of the development set as percentage' --test_size 'int representing the size of the testing set as percentage'
 ```
 
 Example:
 
 ```
-python ner.py -train_data train_data.json -test_data test_data.json
+python build_dataset.py -input_dir /sfgbank-bkl -output_dir /sfgbank-bkl-split
 ```
 
-Additionally, use the --do_train flag if you want to train the model from scractch instead of just loading the one provided in this repository.
+
+### Training
+
+The [BERT-based Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) was trained with the SFG dataset using the following command:
+
+```
+python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-bkl-split/sfgbank-bkl.train --dev-path data/sfgbank-bkl-split/sfgbank-bkl.dev
+```
+
+### Results
+
+|                                  | TEST Recall | TEST Precision | TEST FScore |
+|----------------------------------|-------------|----------------|-------------|
+| CharLSTM + Penn_Treebank         | 93.20       | 93.90          | 93.55       |
+| Transformer_ELMO + Penn_Treebank | 94.85       | 95.40          | 95.13       |
+| Transformer_BERT + Penn_Treebank | 95.41       | 95.99          | 95.70       |
+| Transformer_BERT + SFG_Treebank  | 95.51       | 95.79          | 95.65       |

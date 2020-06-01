@@ -5,7 +5,7 @@ from argparse import ArgumentParser
 import random
 
 
-def split_data(input_dir, output_dir, dev_size=10, test_size=10):
+def split_data(input_dir, output_dir, dev_size, test_size):
     """
     Split data into train/dev/test sets.
     
@@ -40,9 +40,13 @@ def main():
         '-input_dir', '--input_dir', help='Path to the directory containing the data files')
     parser.add_argument(
         '-output_dir', '--output_dir', help='Path to the output directory to save the datasets')
+    parser.add_argument(
+        '--dev_size', default=10, type=int, help='Size of the development set as percentage')
+    parser.add_argument(
+        '--test_size', default=10, type=int, help='Size of the testing set as percentage')
     args = parser.parse_args()
 
-    split_data(args.input_dir, args.output_dir)
+    split_data(args.input_dir, args.output_dir, args.dev_size, args.test_size)
 
 
 if __name__ == "__main__":
