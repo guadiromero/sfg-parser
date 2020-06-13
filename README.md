@@ -119,18 +119,33 @@ python -m spacy evaluate spacy-trained-parser data/sfgbank-split-json/sfgbank-te
 These are the scores achieved by the model:
 
 Time      13.55 s
+
 Words     248063
+
 Words/s   18301
+
 TOK       90.40
+
 TAG       5.52
+
 POS       0.09
+
 MORPH     98.14
+
 UAS       22.44
+
 LAS       1.15
+
 NER P     0.00
+
 NER R     0.00
+
 NER F     0.00
+
 Textcat   0.00
+
 Sent P    100.00
+
 Sent R    9.14
+
 Sent F    16.76
