@@ -3,15 +3,33 @@
 import os
 from argparse import ArgumentParser
 import xml.etree.ElementTree as ET
+import re
+from collections import OrderedDict
 
+# map of SFG to Penn Treebank tags,
+# following http://www.sfs.uni-tuebingen.de/~dm/07/autumn/795.10/ptb-annotation-guide/root.html
+TAG_MAP = OrderedDict([
+    # clause level
+    ("Clause_Complex", "S"),
+    ("Clause", "S"),
+    # phrase level
+    ("Adverbial_Group", "ADVP"),
+    ("Conjunction_Group", "CONJP"),
+    ("Interjection", "INTJ"),
+    ("Nominal_Group", "NP"),
+    ("Verbal_Group", "VP"),
+    ("Particle", "PRT"),
+    ("Prepositional_Phrase", "PP")
+    ])
 
-def traverse_tree(node, text):
+def traverse_tree(node, text, tag_map):
     """
-    Traverse a tree with first-depth search and return it in the linearized Berkeley format.
+    Traverse a tree with first-depth search and return it in Penn Treebank format.
 
     :param node: xml.etree.ElementTree.Element object, representing the syntactic tree of the sentence (Clause Complex)
     :param text: str, text of the sentence
-    :return linearized_tree: str, linearized tree, following the Berkeley format
+    :param tag_map: dict, map of SFG to Penn Treebank tags
+    :return linearized_tree: str, linearized tree, following the Penn Treebank format
     """
 
     linearized_tree = ''
@@ -46,25 +64,28 @@ def traverse_tree(node, text):
                 stack.append(child)
     linearized_tree += ')'
 
+    # map SFG to Penn Treebank tags
+    for tag in TAG_MAP:
+        linearized_tree = re.sub(tag, TAG_MAP[tag], linearized_tree)
+
     return linearized_tree
 
 
-def convert_treebank(input_dir, output_dir, max_len):
+def convert_treebank(args, tag_map):
     """
-    Convert treebank from XML to the Berkeley Parser format.
+    Convert treebank from XML to the Penn Treebank format.
 
-    :param input_dir: str, path to the directory containing the input XML data files
-    :param output_dir: str, path to the output directory to save the converted data files
+    :param tag_map: dict, map of SFG to Penn Treebank tags
     """
 
-    data_files = sorted(os.listdir(input_dir))  
+    data_files = sorted(os.listdir(args.input_dir))  
     total = 0
     deleted = 0 
 
     for data_file in data_files:
 
         # read the file
-        full_path = os.path.join(input_dir, data_file)  
+        full_path = os.path.join(args.input_dir, data_file)  
         tree = ET.parse(full_path)
         root = tree.getroot()
 
@@ -75,36 +96,36 @@ def convert_treebank(input_dir, output_dir, max_len):
         grammar = root[1]
 
         # traverse all the trees in the file and write them in
-        # new files following the linearized Berkeley format
-        output_file = open(os.path.join(output_dir, data_file[:-3] + 'bkl'), 'w+')
+        # new files following the Penn Treebank format
+        output_file = open(os.path.join(args.output_dir, data_file[:-3] + 'penn'), 'w+')
         for node in grammar:
             if node.get('type') == 'Clause_Complex':
                 total += 1
-                linearized_tree = traverse_tree(node, text)
+                linearized_tree = traverse_tree(node, text, tag_map)
                 tokens = linearized_tree.replace("(", " ( ").replace(")", " ) ").split() 
-                if len(tokens) < max_len:
+                if len(tokens) < args.max_len:
                     output_file.write(linearized_tree + '\n')
                 else:
                     deleted += 1
 
-    print('Conversion from XML to Berkeley Parser format ready!')
-    print(str(deleted) + ' sentences out of ' + str(total) + ' were deleted because they excedeed the maximum sequence length of ' + str(max_len))
+    print('Conversion from XML to Penn Treebank format ready!')
+    print(str(deleted) + ' sentences out of ' + str(total) + ' were deleted because they excedeed the maximum sequence length of ' + str(args.max_len) + '. This gives a total of ' + str(total-deleted) + ' sentences.')
 
 
 def main():
 
     parser = ArgumentParser(
-        description='Convert treebank from XML to the Berkeley Parser format')
+        description='Convert treebank from XML to Penn Treebank format')
     parser.add_argument(
-        '-input_dir', '--input_dir', help='Path to the directory containing the input XML data files')
+        '-input-dir', '--input-dir', help='Path to the directory containing the input XML data files')
     parser.add_argument(
-        '-output_dir', '--output_dir', help='Path to the output directory to save the converted data files')
+        '-output-dir', '--output-dir', help='Path to the output directory to save the converted data files')
     parser.add_argument(
-        '--max_len', default=512, type=int, help='Maximum length allowed by the BERT model')
+        '--max-len', default=512, type=int, help='Maximum length allowed by the BERT model')
     args = parser.parse_args()
 
-    # convert the data format from xml to berkeley
-    convert_treebank(args.input_dir, args.output_dir, args.max_len)
+    # convert the data format from XML to Penn Treebank format
+    convert_treebank(args, TAG_MAP)
 
 
 if __name__ == "__main__":
