@@ -10,7 +10,8 @@ def reduce_corpus(args):
     Reduce the number of sentences in the corpus.
     """
 
-    split_index = int(args.sent_num * 80 / 100)
+    #split_index = int(args.sent_num * 80 / 100)
+    split_index = 5000
 
     with open(args.input_file, "r") as f:
         input_file = f.readlines()

@@ -43,7 +43,7 @@ The train/dev/test splits were converted from the constituency Penn Treebank for
 The conversion was done by using the following command for each of the splits:
 
 ```
-java -cp stanford-parser.jar edu.stanford.nlp.trees.EnglishGrammaticalStructure -treeFile data/sfgbank-split-penn/sfg-train.penn -nonCollapsed -conllx > data/sfgbank-split-conll/sfg-train.conll
+java -cp stanford-parser.jar edu.stanford.nlp.trees.EnglishGrammaticalStructure -treeFile data/sfgbank-split-penn/sfg-train.penn -basic -conllx > data/sfgbank-split-conll/sfg-train.conll
 ```
 
 ### Conversion of dependency CoNLL format to spaCy's JSON format
@@ -105,7 +105,7 @@ These are the scores achieved by our model, as well as the three models provided
 spaCy's v3 dependency parser was trained using the following [command line](https://spacy.io/api/cli#train):
 
 ```
-spacy train data/sfgbank-split-json/sfgbank-train.json data/sfgbank-split-json/sfgbank-dev.json defaults.cfg -o models/spacy
+spacy train data/sfgbank-split-json/sfgbank-train.json data/sfgbank-split-json/sfgbank-dev.json config.cfg -o models/spacy-trained-parser
 ```
 
 ### Evaluation
@@ -113,39 +113,19 @@ spacy train data/sfgbank-split-json/sfgbank-train.json data/sfgbank-split-json/s
 The model was evaluated with the following command line:
 
 ```
-python -m spacy evaluate spacy-trained-parser data/sfgbank-split-json/sfgbank-test.json 
+python -m spacy evaluate models/model-1 data/sfgbank-split-json/sfgbank-test.json -G > models/model-1/results.txt
 ```
 
-These are the scores achieved by the model:
+The following different models and their accuracy scores can be found in the `models` and `results` directories, respectively.
 
-Time      13.55 s
+- `results-200.txt`: Trained on a sample of 200 sentences (80:20 split for train/dev) and evaluated on those same 200 sentences.
 
-Words     248063
+- `results-200-dev.txt`: Trained on a sample of 200 sentences (80:20 split for train/dev) and evaluated on the dev split.
 
-Words/s   18301
+- `results-6000.txt`: Trained on a sample of 6000 sentences (5000 train/1000 dev) and evaluated on those same 6000 sentences.
 
-TOK       90.40
+- `results-6000-dev.txt`: Trained on a sample of 6000 sentences (5000 train/1000 dev) and evaluated on the dev split.
 
-TAG       5.52
+- `results-full-model-best.txt`: Best model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing. 
 
-POS       0.09
-
-MORPH     98.14
-
-UAS       22.44
-
-LAS       1.15
-
-NER P     0.00
-
-NER R     0.00
-
-NER F     0.00
-
-Textcat   0.00
-
-Sent P    100.00
-
-Sent R    9.14
-
-Sent F    16.76
+- `results-full-model-final.txt`: Final model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing.
