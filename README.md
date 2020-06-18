@@ -4,18 +4,19 @@
 
 ### Conversion of constituency from XML to Penn Treebank format
 
-The SFG data was converted from XML to Penn Treebank format by linearizing the trees with first-depth search and mapping the constituency tags. Sentences that exceeded the maximum sequence length allowed (512) were deleted (185 out of 167066), giving a total of 167881 sentences. Type this command line if you want to convert the data yourself.
+The SFG data was converted from XML to Penn Treebank format by linearizing the trees with first-depth search and mapping the constituency tags. Sentences that exceeded the maximum sequence length allowed (512) were deleted (140 out of 167066), giving a total of 166926 sentences. Type this command line if you want to convert the data yourself.
+
 
 Usage:
 
 ```
-python xml2penn.py -input-dir 'path to the directory containing the XML data files to convert' -output-dir 'path to the directory where to save the converted data files' --max-len 'maximum sentence length allowed'
+python preprocessing/xml2penn.py -input-dir 'path to the directory containing the XML data files to convert' -output-dir 'path to the directory where to save the converted data files' --max-len 'maximum sentence length allowed'
 ```
 
 Example:
 
 ```
-python xml2penn.py -input-dir data/sfgbank-unsplit-xml -output-dir data/sfgbank-unsplit-penn
+python preprocessing/xml2penn.py -input-dir data/sfgbank-unsplit-xml -output-dir data/sfgbank-unsplit-ptb
 ```
 
 ### Dataset split
@@ -25,16 +26,18 @@ The files were concatenated into three groups: 80% of the files for training, 10
 Usage:
 
 ```
-python build_dataset.py -input-dir 'path to the directory containing the data files' -output-dir 'path to the directory where to save the train/dev/test datasets' -data-name 'name of the data to save' --dev-size 'int representing the size of the development set as percentage' --test-size 'int representing the size of the testing set as percentage'
+python preprocessing/build_dataset.py -input-dir 'path to the directory containing the data files' -output-dir 'path to the directory where to save the train/dev/test datasets' -data-name 'name of the data to save' --dev-size 'int representing the size of the development set as percentage' --test-size 'int representing the size of the testing set as percentage'
 ```
 
 Example:
 
 ```
-python build_dataset.py -input-dir data/sfgbank-unsplit-penn -output-dir data/sfgbank-split-penn -data-name sfgbank-penn
+python preprocessing/build_dataset.py -input-dir data/sfgbank-unsplit-ptb -output-dir data/sfgbank-split-ptb -data-name sfgbank
 ```
 
 These output files at this step were used to train and evaluate the Berkeley parser.
+
+A README is created in the output directory, listing the files contained in each split.
 
 ### Conversion of constituency Penn Treebank format to dependency CoNLL format
 
@@ -43,7 +46,7 @@ The train/dev/test splits were converted from the constituency Penn Treebank for
 The conversion was done by using the following command for each of the splits:
 
 ```
-java -cp stanford-parser.jar edu.stanford.nlp.trees.EnglishGrammaticalStructure -treeFile data/sfgbank-split-penn/sfg-train.penn -basic -conllx > data/sfgbank-split-conll/sfg-train.conll
+java -cp stanford-parser-full-2018-10-17/stanford-parser.jar edu.stanford.nlp.trees.EnglishGrammaticalStructure -treeFile data/sfgbank-split-ptb/sfg-train.ptb -basic -conllx > data/sfgbank-split-conll/sfg-train.conll
 ```
 
 ### Conversion of dependency CoNLL format to spaCy's JSON format
@@ -53,13 +56,13 @@ The fine-grained PoS tags in each of the splits were mapped to [spaCy's coarse-g
 Usage:
 
 ```
-python map_pos_tags.py -input-file 'path to the input file' -output-file 'path to the output file'
+python preprocessing/conll2spacy.py -input-file 'path to the input file' -output-file 'path to the output file'
 ```
 
 Example:
 
 ```
-python map_pos_tags.py -input-file data/sfgbank-split-conll/sfgbank-train.conll -output-file data/sfgbank-split-conll-coarse/sfgbank-train.conll
+python preprocessing/conll2spacy.py -input-file data/sfgbank-split-conll/sfgbank-train.conll -output-file data/sfgbank-split-conll-coarse/sfgbank-train.conll
 ```
 
 The splits were then converted from CoNLL to JSON format by using [spaCy's converter](https://spacy.io/api/cli#convert):
@@ -69,6 +72,21 @@ python -m spacy convert data/sfgbank-split-conll-coarse/sfgbank-train.conll data
 ```
 
 These output files were used to train and evaluate spaCy's dependency parser
+
+### Conversion of JSON format to raw text
+
+This function outputs the raw text that is fed to the parsers for evaluation.
+
+Usage:
+
+```
+python preprocessing/json2str.py -input-file 'path to the input file in json format' -output-file 'path to the file where to save the output in txt format'
+```
+
+Example:
+```
+python preprocessing/json2txt.py -input-file data/sfgbank-split-json/sfgbank-test.json -output-file data/sfgbank-split-text/sfgbank-test.txt 
+```
 
 ## Constituency parsing
 

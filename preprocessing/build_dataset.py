@@ -10,26 +10,54 @@ def split_data(args):
     Split data into train/dev/test sets.
     """
 
-    # randomize data
     data_files = os.listdir(args.input_dir)
+
+    # either sort the data files alphabetically or shuffle them (comment one of the lines)
+#    data_files = sorted(data_files)
     random.shuffle(data_files)
 
     # get data file extension
     filename, file_extension = os.path.splitext(data_files[0])
 
-    # get split indexes
-    split_index_dev = int(len(data_files) * args.dev_size / 100)
-    split_index_test = split_index_dev + int(len(data_files) * args.dev_size / 100)
+    # number of files in the dev and test sets
+    dev_n = int(args.dev_size * len(data_files) / 100)
+    test_n = int(args.test_size * len(data_files) / 100)
+    train_n = len(data_files) - dev_n - test_n
 
-    with open(os.path.join(args.output_dir, args.data_name + '-dev' + file_extension), 'w+') as dev:
-        for input_file in data_files[:split_index_dev]:
-            dev.write(open(os.path.join(args.input_dir, input_file), 'r').read())
-    with open(os.path.join(args.output_dir, args.data_name + '-test' + file_extension), 'w+') as test:
-        for input_file in data_files[split_index_dev:split_index_test]:            
-            test.write(open(os.path.join(args.input_dir, input_file), 'r').read())
+    # files in each set
+    train_files = data_files[:(len(data_files) - dev_n - test_n)]
+    dev_files = data_files[(len(data_files) - dev_n - test_n):(len(data_files) - test_n)]
+    test_files = data_files[(len(data_files) - test_n):len(data_files)]
+
+    # write the list of files in each set
+    with open(os.path.join(args.output_dir, "README"), "w+") as f:
+        f.write("### TRAIN SET ###\n\n")
+        f.write("Percentage: " + str(100 - args.dev_size - args.test_size) + "%\n")
+        f.write("Number of files: " + str(train_n) + "\n\n")
+        for file_name in train_files:
+            f.write(file_name + "\n")
+        f.write("\n\n")
+        f.write("### DEV SET ###\n\n")
+        f.write("Percentage: " + str(args.dev_size) + "%\n")
+        f.write("Number of files: " + str(dev_n) + "\n\n")
+        for file_name in dev_files:
+            f.write(file_name + "\n")
+        f.write("\n\n")
+        f.write("### TEST SET ###\n\n")
+        f.write("Percentage: " + str(args.test_size) + "%\n")
+        f.write("Number of files: " + str(test_n) + "\n\n")
+        for file_name in test_files:
+            f.write(file_name + "\n")
+
     with open(os.path.join(args.output_dir, args.data_name + '-train' + file_extension), 'w+') as train:
-        for input_file in data_files[split_index_test:]:
-            train.write(open(os.path.join(args.input_dir, input_file), 'r').read())
+        for f in train_files:
+            train.write(open(os.path.join(args.input_dir, f), 'r').read())
+    with open(os.path.join(args.output_dir, args.data_name + '-dev' + file_extension), 'w+') as dev:
+        for f in dev_files:
+            dev.write(open(os.path.join(args.input_dir, f), 'r').read())
+    with open(os.path.join(args.output_dir, args.data_name + '-test' + file_extension), 'w+') as test:
+        for f in test_files:            
+            test.write(open(os.path.join(args.input_dir, f), 'r').read())
 
 
 def main():

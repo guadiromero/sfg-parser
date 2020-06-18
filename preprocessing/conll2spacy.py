@@ -22,8 +22,8 @@ def convert_pos(args):
                 f.write(line)
             else:
                 id, word, lemma, fine_pos, fine_tag, morph, head, dep, _, space_after = line.split("\t")
-                if fine_pos == "Ellipsis":
-                    coarse_pos = "X" # check if there is a more appropriate tag
+                if fine_pos == "Ellipsis" or fine_pos == "UNK": # "Ellipsis" comes from the SFG corpus and "UNK" from the Berkeley parser
+                    coarse_pos = "X" # i should think how to handle this better
                 else:
                     coarse_id = TAG_MAP[fine_pos][POS]
                     coarse_pos = nlp.vocab.strings[coarse_id]

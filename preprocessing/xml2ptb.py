@@ -6,20 +6,25 @@ import xml.etree.ElementTree as ET
 import re
 from collections import OrderedDict
 
-# map of SFG to Penn Treebank tags,
-# following http://www.sfs.uni-tuebingen.de/~dm/07/autumn/795.10/ptb-annotation-guide/root.html
+# map of SFG to PTB tags,
+# source: http://www.sfs.uni-tuebingen.de/~dm/07/autumn/795.10/ptb-annotation-guide/root.html
 TAG_MAP = OrderedDict([
     # clause level
     ("Clause_Complex", "S"),
     ("Clause", "S"),
     # phrase level
+    ("Adverbial_Group_Complex", "ADVP"),
     ("Adverbial_Group", "ADVP"),
     ("Conjunction_Group", "CONJP"),
+    ("Interjection_Complex", "INTJ"),
     ("Interjection", "INTJ"),
+    ("Nominal_Group_Complex", "NP"),
     ("Nominal_Group", "NP"),
+    ("Verbal_Group_Complex", "VP"),    
     ("Verbal_Group", "VP"),
     ("Particle", "PRT"),
-    ("Prepositional_Phrase", "PP")
+    ("Prepositional_Phrase_Complex", "PP"),
+    ("Prepositional_Phrase", "PP"),
     ])
 
 def traverse_tree(node, text, tag_map):
@@ -45,7 +50,12 @@ def traverse_tree(node, text, tag_map):
         if node == ')':
             linearized_tree += ')'
         else:
-            if node.tag == 'Constituent':
+            # skip node if it only contains ellipsis
+            ellipsis = True
+            for subnode in node.iter():
+                if subnode.get("type") in ["Word", "Punctuation"]:
+                    ellipsis = False
+            if node.tag == 'Constituent' and ellipsis == False:
                 if len(linearized_tree) > 0:
                     linearized_tree += ' '
                 linearized_tree += '('
@@ -53,13 +63,19 @@ def traverse_tree(node, text, tag_map):
                     pos = node[1][0].get('value')[6:]
                     word_text = text[int(node[0].get('start')):int(node[0].get('end'))]
                     linearized_tree += pos + ' ' + word_text
-                elif node.get('type') in ['Ellipsis']:
-                    linearized_tree += 'Ellipsis <Ellipsis>'
+                # keep ellipsis
+#                elif node.get('type') in ['Ellipsis']:
+#                    linearized_tree += 'Ellipsis <Ellipsis>'
                 else:
                     linearized_tree += node.get('type')
-            # push the children of the current node to the stack, from right to left
-            for child in reversed(list(node)): 
-                if child.tag == 'Constituent':
+            # push the direct children of the current node to the stack, from right to left
+            for child in reversed(list(node)):
+                # skip if it only contains ellipsis
+                ellipsis = True 
+                for subnode in child.iter():
+                    if subnode.get("type") in ["Word", "Punctuation"]:
+                        ellipsis = False    
+                if child.tag == 'Constituent' and ellipsis == False:
                     stack.append(')')           
                 stack.append(child)
     linearized_tree += ')'
@@ -73,9 +89,9 @@ def traverse_tree(node, text, tag_map):
 
 def convert_treebank(args, tag_map):
     """
-    Convert treebank from XML to the Penn Treebank format.
+    Convert treebank from XML to the PTB format.
 
-    :param tag_map: dict, map of SFG to Penn Treebank tags
+    :param tag_map: ordered dict, map of SFG to PTB tags
     """
 
     data_files = sorted(os.listdir(args.input_dir))  
@@ -97,7 +113,7 @@ def convert_treebank(args, tag_map):
 
         # traverse all the trees in the file and write them in
         # new files following the Penn Treebank format
-        output_file = open(os.path.join(args.output_dir, data_file[:-3] + 'penn'), 'w+')
+        output_file = open(os.path.join(args.output_dir, data_file[:-3] + 'ptb'), 'w+')
         for node in grammar:
             if node.get('type') == 'Clause_Complex':
                 total += 1
