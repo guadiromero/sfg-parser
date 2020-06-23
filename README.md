@@ -80,7 +80,7 @@ This function outputs the raw text that is fed to the parsers for evaluation.
 Usage:
 
 ```
-python preprocessing/json2str.py -input-file 'path to the input file in json format' -output-file 'path to the file where to save the output in txt format'
+python preprocessing/json2txt.py -input-file 'path to the input file in json format' -output-file 'path to the file where to save the output in txt format'
 ```
 
 Example:
@@ -95,7 +95,7 @@ python preprocessing/json2txt.py -input-file data/sfgbank-split-json/sfgbank-tes
 The [BERT-based Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) was trained with the SFG dataset using the following command:
 
 ```
-python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-split-penn/sfgbank-train.penn --dev-path data/sfgbank-split-penn/sfgbank-dev.penn
+python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-split-penn/sfgbank-train.penn --dev-path data/sfgbank-split-penn/sfgbank-dev.penn --predict-tags
 ```
 
 ### Evaluation
@@ -147,3 +147,44 @@ The following different models and their accuracy scores can be found in the `mo
 - `results-full-model-best.txt`: Best model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing. 
 
 - `results-full-model-final.txt`: Final model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing.
+
+## Parser comparison
+
+The raw test sentences were parsed using each model. For the Berkeley parser, the following command line was used:
+
+```
+python src/main.py parse --model-path-base models/berkeley/en_bert_sfg_dev=95.79.pt --input-path data/sfgbank-split-text/sfgbank-test.txt --output-path -output-file data/sfgbank-parsed/berkeley/sfgbank-test-parsed.txt
+```
+
+The output was further transformed using StanfordNLP's constituencies to dependencies and spaCy's CoNLL to JSON converters (see "Conversion of constituency Penn Treebank format to dependency CoNLL format" and "Conversion of dependency CoNLL format to spaCy's JSON format" above). 
+
+The following script was used for parsing the test sentences with spaCy's parser and converting them to the appropriate JSON format.
+
+Usage:
+```
+python spacy_parse.py -input-file 'path to txt file containing the raw text to parse' -output-file 'path to the file where to save the output of the parser' -model 'path to the directory containing spacy's trained model'
+```
+
+Example:
+```
+python spacy_parse.py -input-file data/sfgbank-split-text/sfgbank-test.txt -output-file data/sfgbank-parsed/spacy/sfgbank-test-parsed.json -model models/spacy/full/model-best/
+```
+
+The two parsers were evaluated on the dependencies task, using the `eval.py` script. 
+
+Usage:
+```
+python eval/eval.py -predicted 'path to the json file containing the predictions' -gold 'path to the json file containing the gold data'
+```
+
+Example:
+```
+python eval/eval.py -predicted data/sfgbank-parsed/spacy/sfgbank-test-parsed.json -gold data/sfgbank-split-json/sfgbank-test.json 
+```
+
+These were the scores achieved by each parser:
+
+|          | UAS   | LAS   |
+|----------|-------|-------|
+| Berkeley | 95.57 | 93.99 |
+| spaCy    | 91.99 | 89.84 |
