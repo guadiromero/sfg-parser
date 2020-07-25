@@ -10,13 +10,13 @@ The SFG data was converted from XML to Penn Treebank format by linearizing the t
 Usage:
 
 ```
-python preprocessing/xml2penn.py -input-dir 'path to the directory containing the XML data files to convert' -output-dir 'path to the directory where to save the converted data files' --max-len 'maximum sentence length allowed'
+python preprocessing/xml2ptb.py -input-dir 'path to the directory containing the XML data files to convert' -output-dir 'path to the directory where to save the converted data files' --max-len 'maximum sentence length allowed'
 ```
 
 Example:
 
 ```
-python preprocessing/xml2penn.py -input-dir data/sfgbank-unsplit-xml -output-dir data/sfgbank-unsplit-ptb
+python preprocessing/xml2ptb.py -input-dir data/sfgbank-unsplit-xml -output-dir data/sfgbank-unsplit-ptb
 ```
 
 ### Dataset split
@@ -41,7 +41,7 @@ A README is created in the output directory, listing the files contained in each
 
 ### Conversion of constituency Penn Treebank format to dependency CoNLL format
 
-The train/dev/test splits were converted from the constituency Penn Treebank format to the dependency CoNLL format using [StanfordNLP](https://nlp.stanford.edu/software/lex-parser.html#Download) (see relevant [FAQ](https://nlp.stanford.edu/software/parser-faq.shtml#s) and [StanfordNLP manual](https://nlp.stanford.edu/software/dependencies_manual.pdf))
+The train/dev/test splits were converted from the constituency Penn Treebank format to the dependency CoNLL format using [StanfordNLP](https://nlp.stanford.edu/software/lex-parser.html#Download) (see relevant [FAQ](https://nlp.stanford.edu/software/parser-faq.shtml#s) and [StanfordNLP manual](https://nlp.stanford.edu/software/dependencies_manual.pdf)).
 
 The conversion was done by using the following command for each of the splits:
 
@@ -95,7 +95,7 @@ python preprocessing/json2txt.py -input-file data/sfgbank-split-json/sfgbank-tes
 The [BERT-based Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) was trained with the SFG dataset using the following command:
 
 ```
-python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-split-penn/sfgbank-train.penn --dev-path data/sfgbank-split-penn/sfgbank-dev.penn --predict-tags
+python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-split-ptb/sfgbank-train.ptb --dev-path data/sfgbank-split-ptb/sfgbank-dev.ptb --predict-tags
 ```
 
 ### Evaluation
@@ -103,12 +103,12 @@ python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-
 The trained model was tested using the following command:
 
 ```
-python src/main.py test --model-path-base models/en_bert_sfg/en_bert_sfg_dev=95.79.pt
+python src/main.py test --model-path-base models/en_bert_sfg_dev\=96.07.pt --test-path data/sfgbank-test.ptb 
 ```
 
 These are the scores achieved by our model, as well as the three models provided in the Berkeley Parser repository.
 
-|                                  | Recall      | Precision      | FScore      |
+|                                  | LR          | LP             | F1          |
 |----------------------------------|-------------|----------------|-------------|
 | CharLSTM + Penn_Treebank         | 93.20       | 93.90          | 93.55       |
 | Transformer_ELMO + Penn_Treebank | 94.85       | 95.40          | 95.13       |

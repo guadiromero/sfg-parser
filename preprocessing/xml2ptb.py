@@ -5,36 +5,17 @@ from argparse import ArgumentParser
 import xml.etree.ElementTree as ET
 import re
 from collections import OrderedDict
+from tag_maps import TAGS_SFG as tag_map
 
-# map of SFG to PTB tags,
-# source: http://www.sfs.uni-tuebingen.de/~dm/07/autumn/795.10/ptb-annotation-guide/root.html
-TAG_MAP = OrderedDict([
-    # clause level
-    ("Clause_Complex", "S"),
-    ("Clause", "S"),
-    # phrase level
-    ("Adverbial_Group_Complex", "ADVP"),
-    ("Adverbial_Group", "ADVP"),
-    ("Conjunction_Group", "CONJP"),
-    ("Interjection_Complex", "INTJ"),
-    ("Interjection", "INTJ"),
-    ("Nominal_Group_Complex", "NP"),
-    ("Nominal_Group", "NP"),
-    ("Verbal_Group_Complex", "VP"),    
-    ("Verbal_Group", "VP"),
-    ("Particle", "PRT"),
-    ("Prepositional_Phrase_Complex", "PP"),
-    ("Prepositional_Phrase", "PP"),
-    ])
 
-def traverse_tree(node, text, tag_map):
+def traverse_tree(node, text, tag_map, ellipsis_method=None):
     """
-    Traverse a tree with first-depth search and return it in Penn Treebank format.
+    Traverse a tree with first-depth search and return it in PTB format.
 
-    :param node: xml.etree.ElementTree.Element object, representing the syntactic tree of the sentence (Clause Complex)
+    :param node: xml.etree.ElementTree.Element object, representing the syntactic tree of the sentence (where the root is a Clause Complex)
     :param text: str, text of the sentence
-    :param tag_map: dict, map of SFG to Penn Treebank tags
-    :return linearized_tree: str, linearized tree, following the Penn Treebank format
+    :param tag_map: dict, tag map
+    :return linearized_tree: str, linearized tree, following the PTB format
     """
 
     linearized_tree = ''
@@ -80,9 +61,9 @@ def traverse_tree(node, text, tag_map):
                 stack.append(child)
     linearized_tree += ')'
 
-    # map SFG to Penn Treebank tags
-    for tag in TAG_MAP:
-        linearized_tree = re.sub(tag, TAG_MAP[tag], linearized_tree)
+    # map SFG to PTB tags
+    for tag in tag_map:
+        linearized_tree = re.sub(tag, tag_map[tag], linearized_tree)
 
     return linearized_tree
 
@@ -140,8 +121,8 @@ def main():
         '--max-len', default=512, type=int, help='Maximum length allowed by the BERT model')
     args = parser.parse_args()
 
-    # convert the data format from XML to Penn Treebank format
-    convert_treebank(args, TAG_MAP)
+    # convert the data format from XML to PTB format
+    convert_treebank(args, tag_map)
 
 
 if __name__ == "__main__":
