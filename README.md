@@ -4,29 +4,28 @@
 
 ### Conversion of constituency from XML to Penn Treebank format
 
-The SFG data was converted from XML to Penn Treebank format by linearizing the trees with first-depth search and mapping the constituency tags. Sentences that exceeded the maximum sequence length allowed (512) were deleted (140 out of 167066), giving a total of 166926 sentences. Type this command line if you want to convert the data yourself.
-
+The SFG data was converted from XML to Penn Treebank format by linearizing the trees with first-depth search and mapping the constituency tags. Sentences that exceeded the maximum sequence length allowed (512) were deleted (103 out of 167066), giving a total of 166963 sentences. Type this command line if you want to convert the data yourself.
 
 Usage:
 
 ```
-python preprocessing/xml2ptb.py -input-dir 'path to the directory containing the XML data files to convert' -output-dir 'path to the directory where to save the converted data files' --max-len 'maximum sentence length allowed'
+python preprocessing/xml2ptb.py -input-dir 'path to the directory containing the XML data files to convert' -output-ptb-dir 'path to the directory where to save the converted data files in PTB format' --output-str-dir 'path to the directory where to save the data files as strings' --ellipsis-method 'str indicating the method for ellipsis recovery' --max-len 'maximum sentence length allowed'
 ```
 
 Example:
 
 ```
-python preprocessing/xml2ptb.py -input-dir data/sfgbank-unsplit-xml -output-dir data/sfgbank-unsplit-ptb
+python preprocessing/xml2ptb.py -input-dir data/sfgbank-unsplit-xml -output-ptb-dir data/sfgbank-unsplit-ptb-left-label --output-str-dir data/sfgbank-unsplit-str --ellipsis-method 'left_label'
 ```
 
 ### Dataset split
 
-The files were concatenated into three groups: 80% of the files for training, 10% for development and 10% for testing. Type this command line if you want to split the data yourself.
+We follow the conventional splits of the Penn Treebank, using sections 2-21 of the WSJ data for training, section 22 as development set and 23 as test set.
 
 Usage:
 
 ```
-python preprocessing/build_dataset.py -input-dir 'path to the directory containing the data files' -output-dir 'path to the directory where to save the train/dev/test datasets' -data-name 'name of the data to save' --dev-size 'int representing the size of the development set as percentage' --test-size 'int representing the size of the testing set as percentage'
+python preprocessing/build_dataset.py -input-dir 'path to the directory containing the data files' -output-dir 'path to the directory where to save the train/dev/test datasets' -data-name 'name of the data to save'
 ```
 
 Example:
@@ -35,7 +34,7 @@ Example:
 python preprocessing/build_dataset.py -input-dir data/sfgbank-unsplit-ptb -output-dir data/sfgbank-split-ptb -data-name sfgbank
 ```
 
-These output files at this step were used to train and evaluate the Berkeley parser.
+These output files were used to train and evaluate the Berkeley parser.
 
 A README is created in the output directory, listing the files contained in each split.
 

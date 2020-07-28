@@ -12,40 +12,28 @@ def split_data(args):
 
     data_files = os.listdir(args.input_dir)
 
-    # either sort the data files alphabetically or shuffle them (comment one of the lines)
-#    data_files = sorted(data_files)
-    random.shuffle(data_files)
+    # sort the data files alphabetically
+    data_files = sorted(data_files)
 
     # get data file extension
     filename, file_extension = os.path.splitext(data_files[0])
 
-    # number of files in the dev and test sets
-    dev_n = int(args.dev_size * len(data_files) / 100)
-    test_n = int(args.test_size * len(data_files) / 100)
-    train_n = len(data_files) - dev_n - test_n
-
     # files in each set
-    train_files = data_files[:(len(data_files) - dev_n - test_n)]
-    dev_files = data_files[(len(data_files) - dev_n - test_n):(len(data_files) - test_n)]
-    test_files = data_files[(len(data_files) - test_n):len(data_files)]
+    train_files = [f for f in data_files if f.startswith(("wsj_02","wsj_03", "wsj_04", "wsj_05", "wsj_06", "wsj_07", "wsj_08", "wsj_09", "wsj_10", "wsj_11", "wsj_12", "wsj_13", "wsj_14", "wsj_15", "wsj_16", "wsj_17", "wsj_18", "wsj_19", "wsj_20", "wsj_21"))]
+    dev_files = [f for f in data_files if f.startswith("wsj_22")]
+    test_files = [f for f in data_files if f.startswith("wsj_23")]
 
     # write the list of files in each set
     with open(os.path.join(args.output_dir, "README"), "w+") as f:
         f.write("### TRAIN SET ###\n\n")
-        f.write("Percentage: " + str(100 - args.dev_size - args.test_size) + "%\n")
-        f.write("Number of files: " + str(train_n) + "\n\n")
         for file_name in train_files:
             f.write(file_name + "\n")
         f.write("\n\n")
         f.write("### DEV SET ###\n\n")
-        f.write("Percentage: " + str(args.dev_size) + "%\n")
-        f.write("Number of files: " + str(dev_n) + "\n\n")
         for file_name in dev_files:
             f.write(file_name + "\n")
         f.write("\n\n")
         f.write("### TEST SET ###\n\n")
-        f.write("Percentage: " + str(args.test_size) + "%\n")
-        f.write("Number of files: " + str(test_n) + "\n\n")
         for file_name in test_files:
             f.write(file_name + "\n")
 
@@ -70,10 +58,6 @@ def main():
         '-output-dir', '--output-dir', help='Path to the output directory to save the datasets')
     parser.add_argument(
         '-data-name', '--data-name', help='Name of the data to save')
-    parser.add_argument(
-        '--dev-size', default=10, type=int, help='Size of the development set as percentage')
-    parser.add_argument(
-        '--test-size', default=10, type=int, help='Size of the testing set as percentage')
     args = parser.parse_args()
 
     split_data(args)

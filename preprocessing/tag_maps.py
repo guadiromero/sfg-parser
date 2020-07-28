@@ -34,7 +34,7 @@ TAGS_SFG = {
     "Interjection": "INTJ",
     "Nominal_Group_Complex": "NGX",
     "Nominal_Group": "NG",
-    "Verbal_Group_Complex": "VG",    
+    "Verbal_Group_Complex": "VGX",    
     "Verbal_Group": "VG",
     "Particle": "PRT",
     "Prepositional_Phrase_Complex": "PPX",
