@@ -152,7 +152,7 @@ The following different models and their accuracy scores can be found in the `mo
 The raw test sentences were parsed using each model. For the Berkeley parser, the following command line was used:
 
 ```
-python src/main.py parse --model-path-base models/berkeley/en_bert_sfg_dev=95.79.pt --input-path data/sfgbank-split-text/sfgbank-test.txt --output-path -output-file data/sfgbank-parsed/berkeley/sfgbank-test-parsed.txt
+python src/main.py parse --model-path-base models/berkeley/en_bert_sfg_dev=95.79.pt --input-path data/sfgbank-split-text/sfgbank-test.txt --output-path data/sfgbank-parsed/berkeley/sfgbank-test-parsed.txt
 ```
 
 The output was further transformed using StanfordNLP's constituencies to dependencies and spaCy's CoNLL to JSON converters (see "Conversion of constituency Penn Treebank format to dependency CoNLL format" and "Conversion of dependency CoNLL format to spaCy's JSON format" above). 
