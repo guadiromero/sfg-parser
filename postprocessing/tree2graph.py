@@ -30,7 +30,7 @@ def convert(input_file, ellipsis_method=None):
             token = {}
             token["id"] = index
             token["children"] = []
-#            token["parents"] = []
+            token["parents"] = []
             token["tag"] = st.label().split("ellipsis")[0]
             ellipsis_tags = st.label().split("ellipsis")[1:]
             token["ellipsis_tag"] = ellipsis_tags
@@ -59,7 +59,9 @@ def convert(input_file, ellipsis_method=None):
             if st.parent() != None:
                 parent_index = tree_positions[st.parent().treeposition()]
                 # add parent information
-#                token["parents"].append(parent_index)
+                token["parents"].append(parent_index)                   # non-ellipsed children
+                for ellipsed_node in ellipsed_nodes:                    # ellipsed children                    
+                    tokens[ellipsed_node]["parents"].append(parent_index)
                 # add children information
                 tokens[parent_index]["children"].extend(ellipsed_nodes) # ellipsed children
                 tokens[parent_index]["children"].append(index)          # non-ellipsed children
@@ -87,7 +89,7 @@ def main():
         full_path = os.path.join(args.input_dir, input_file)
         graph = convert(full_path, args.ellipsis_method)
         with open(os.path.join(args.output_dir, filename + ".json"), "w+") as f:
-            json.dump([graph], f)    
+            json.dump(graph, f)    
 
 
 if __name__ == "__main__":
