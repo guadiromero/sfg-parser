@@ -1,18 +1,16 @@
-import os
-from argparse import ArgumentParser
+from pathlib import Path
+import typer
 from nltk import ParentedTree
 import re
 import json
 
 
-def convert(input_file, ellipsis_method=None):
+def convert(input_file, ellipsis_method):
     """
     :param input_file: file containing the phrase-structure trees 
-    :param ellipsis_method: str, indicating the method for encoding ellipsis, can either be right_label or left_label, default to None
+    :param ellipsis_method: str, indicating the method for encoding ellipsis, can either be right_label or left_label
     :return graph: embedded dict, containing the parsed data as a graph
     """
-
-    filename, file_extension = os.path.splitext(input_file)
 
     with open(input_file, "r", encoding="utf-8") as f:
         trees = f.readlines()
@@ -30,7 +28,8 @@ def convert(input_file, ellipsis_method=None):
             token = {}
             token["id"] = index
             token["children"] = []
-            token["parents"] = []
+            token["parent"] = 0
+            token["parent_ellipsed"] = []
             token["tag"] = st.label().split("ellipsis")[0]
             ellipsis_tags = st.label().split("ellipsis")[1:]
             token["ellipsis_tag"] = ellipsis_tags
@@ -59,9 +58,9 @@ def convert(input_file, ellipsis_method=None):
             if st.parent() != None:
                 parent_index = tree_positions[st.parent().treeposition()]
                 # add parent information
-                token["parents"].append(parent_index)                   # non-ellipsed children
+                token["parent"] = parent_index                          # non-ellipsed children
                 for ellipsed_node in ellipsed_nodes:                    # ellipsed children                    
-                    tokens[ellipsed_node]["parents"].append(parent_index)
+                    tokens[ellipsed_node]["parent_ellipsed"].append(parent_index)
                 # add children information
                 tokens[parent_index]["children"].extend(ellipsed_nodes) # ellipsed children
                 tokens[parent_index]["children"].append(index)          # non-ellipsed children
@@ -71,26 +70,13 @@ def convert(input_file, ellipsis_method=None):
     return graph
 
 
-def main():
-
-    parser = ArgumentParser(
-        description="Tree to graph conversion")
-    parser.add_argument(
-        "-input-dir", "--input-dir", help="Path to the directory containing the input PCFG trees")
-    parser.add_argument(
-        "-output-dir", "--output-dir", help="Path to the directory where to save the output graphs")
-    parser.add_argument(
-        "--ellipsis-method", default=None, type=str, help="Ellipsis method (right_label, left_label or None)")
-    args = parser.parse_args()
-
-    input_files = os.listdir(args.input_dir)
-    for input_file in input_files:
-        filename, file_extension = os.path.splitext(input_file)
-        full_path = os.path.join(args.input_dir, input_file)
-        graph = convert(full_path, args.ellipsis_method)
-        with open(os.path.join(args.output_dir, filename + ".json"), "w+") as f:
-            json.dump(graph, f)    
+def main(input_dir: Path, output_dir: Path, ellipsis_method: str=""):
+    for input_file in input_dir.iterdir():
+        graph = convert(input_file, ellipsis_method)
+        output_path = Path.joinpath(output_dir, input_file.name).with_suffix(".json")
+        with output_path.open(mode="w+") as f:
+            json.dump([graph], f) 
 
 
 if __name__ == "__main__":
-    main()
+    typer.run(main)
