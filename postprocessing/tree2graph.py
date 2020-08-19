@@ -75,7 +75,7 @@ def main(input_dir: Path, output_dir: Path, ellipsis_method: str=""):
         graph = convert(input_file, ellipsis_method)
         output_path = Path.joinpath(output_dir, input_file.name).with_suffix(".json")
         with output_path.open(mode="w+") as f:
-            json.dump([graph], f) 
+            json.dump(graph, f) 
 
 
 if __name__ == "__main__":
