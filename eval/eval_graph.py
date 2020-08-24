@@ -3,26 +3,31 @@ import typer
 import json
 
 
-def count_nodes(graph):
+def count_nodes(graphs):
     """
     Count number of nodes.
     """
 
-    return len(graph["tokens"])
+    counter = 0
+    for graph in graphs["sentences"]:
+        counter += len(graph["tokens"])
+
+    return counter
 
 
-def count_nodes_per_label(graph):
+def count_nodes_per_label(graphs):
     """
     Count number of nodes per label.
     """
 
     counter = {}
-    for node in graph["tokens"]:
-        label = node["tag"]
-        if label not in counter:
-            counter[label] = 1
-        else:
-            counter[label] += 1
+    for graph in graphs["sentences"]:
+        for node in graph["tokens"]:
+            label = node["tag"]
+            if label not in counter:
+                counter[label] = 1
+            else:
+                counter[label] += 1
 
     return counter
 
@@ -86,37 +91,49 @@ def label_is_correct(gold_graph, predicted_graph, node):
         return False
 
 
-def score_graph(gold_graph, predicted_graph):
+def score(gold, predicted, exclude_ellipsis, ellipsis_only):
     """
-    Get scores for a graph.
+    Evaluate graphs.
     """
 
-    gold_nodes = count_nodes(gold_graph)
-    predicted_nodes = count_nodes(predicted_graph)
+    gold_nodes = count_nodes(gold)
+    predicted_nodes = count_nodes(predicted)
     correct_unlabeled = 0
     correct_labeled = 0
     correct_per_label = {}
-    gold_per_label = count_nodes_per_label(gold_graph)
-    predicted_per_label = count_nodes_per_label(predicted_graph)
+    gold_per_label = count_nodes_per_label(gold)
+    predicted_per_label = count_nodes_per_label(predicted)
 
-    for node in range(len(gold_graph["tokens"])):
-        label = gold_graph["tokens"][node]["tag"]
-        if label not in correct_per_label:
-            correct_per_label[label] = {"correct_labeled": 0, "correct_unlabeled": 0}
-        if edge_is_correct(gold_graph, predicted_graph, node):
-            correct_unlabeled += 1
-            correct_per_label[label]["correct_unlabeled"] += 1
-            if label_is_correct(gold_graph, predicted_graph, node):
-                correct_labeled += 1
-                correct_per_label[label]["correct_labeled"] += 1
+    for gold_graph, predicted_graph in zip(gold["sentences"], predicted["sentences"]):
+        # exclude graphs that contain/do not contain ellipsis if indicated as an argument
+        if ellipsis_only:
+            if all(len(token["ellipsis_tag"]) == 0 for token in gold_graph["tokens"]):
+                break                          
+        elif exclude_ellipsis:
+            if any(len(token["ellipsis_tag"]) != 0 for token in gold_graph["tokens"]):
+                break
+        # count number of correct nodes
+        for node in range(len(gold_graph["tokens"])):
+            label = gold_graph["tokens"][node]["tag"]
+            if label not in correct_per_label:
+                correct_per_label[label] = {"correct_labeled": 0, "correct_unlabeled": 0}
+            if edge_is_correct(gold_graph, predicted_graph, node):
+                correct_unlabeled += 1
+                correct_per_label[label]["correct_unlabeled"] += 1
+                if label_is_correct(gold_graph, predicted_graph, node):
+                    correct_labeled += 1
+                    correct_per_label[label]["correct_labeled"] += 1
 
+    # I WILL MAKE THIS PART MORE READABLE LATER :D
     scores = {}
     scores["unlabeled_p"] = correct_unlabeled / predicted_nodes
     scores["unlabeled_r"] = correct_unlabeled / gold_nodes
-    scores["unlabeled_f"] = 2 * ((scores["unlabeled_p"] * scores["unlabeled_r"]) / (scores["unlabeled_p"] + scores["unlabeled_r"]))
+    if scores["unlabeled_p"] + scores["unlabeled_r"] != 0:
+        scores["unlabeled_f"] = 2 * ((scores["unlabeled_p"] * scores["unlabeled_r"]) / (scores["unlabeled_p"] + scores["unlabeled_r"]))
     scores["labeled_p"] = correct_labeled / predicted_nodes
     scores["labeled_r"] = correct_labeled / gold_nodes
-    scores["labeled_f"] = 2 * ((scores["labeled_p"] * scores["labeled_r"]) / (scores["labeled_p"] + scores["labeled_r"]))
+    if scores["labeled_p"] + scores["labeled_r"] != 0:
+        scores["labeled_f"] = 2 * ((scores["labeled_p"] * scores["labeled_r"]) / (scores["labeled_p"] + scores["labeled_r"]))
     scores["per_label"] = {}
     for label in correct_per_label:
         scores["per_label"][label] = {}
@@ -132,20 +149,12 @@ def score_graph(gold_graph, predicted_graph):
     return scores
 
 
-def score(gold, predicted):
-    """
-    Get total score for a set of predicted graphs.
-    """
-    
-    for gold_graph, predicted_graph in zip(gold["sentences"], predicted["sentences"]):
-        scores = score_graph(gold_graph, predicted_graph)
-
-    # CALCULATE AVERAGE
-
-    return scores
-
-
-def main(gold_file: Path, predicted_file: Path):
+def main(
+    gold_file: Path, 
+    predicted_file: Path, 
+    exclude_ellipsis: bool = typer.Option(False, help="Whether to exclude graphs with ellipsed nodes"),
+    ellipsis_only: bool = typer.Option(False, help="Whether to only include graphs with ellipsed nodes"),
+    ):
 
     with gold_file.open(mode="r") as f:
         gold = json.load(f)
@@ -153,7 +162,7 @@ def main(gold_file: Path, predicted_file: Path):
     with predicted_file.open(mode="r") as f:
         predicted = json.load(f)
 
-    scores = score(gold, predicted)
+    scores = score(gold, predicted, exclude_ellipsis, ellipsis_only)
     print(scores)
 
 

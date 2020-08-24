@@ -35,7 +35,7 @@ def traverse_tree(node, text, tag_map, ellipsis_method=None):
         if node == ')':
             linearized_tree += ')'
         else:
-            # enumerate the constituent and get some basic information about it
+            # enumerate the constituent and get basic information
             node_id = node.get('id')
             node_type = node.get('type')
             if node.tag == "Constituent":
