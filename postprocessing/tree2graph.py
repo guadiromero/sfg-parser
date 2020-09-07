@@ -30,7 +30,7 @@ def convert(input_file, right_label):
             node["id"] = index
             node["children"] = []
             node["parent"] = tree_positions[st.parent().treeposition()] if st.parent() != None else 0
-            node["parent_ellipsed"] = []
+            node["ellipsed_parents"] = []
             node["tag"] = st.label().split("-ellipsis")[0]
             ellipsis_tags = st.label().split("-ellipsis")[1:]
             node["ellipsis_tags"] = ellipsis_tags
@@ -60,14 +60,14 @@ def convert(input_file, right_label):
                                 tag_i += 1         
             for ellipsed_node in ellipsed_nodes:
                 # add ellipsed parent information
-                parent_ellipsed = graph[node["id"]+1]["parent"] if node["id"]+1 < len(graph) else graph[node["id"]]["parent"]           
-                graph[ellipsed_node]["parent_ellipsed"].append(graph[parent_ellipsed]["id"])
+                ellipsed_parents = graph[node["id"]+1]["parent"] if node["id"]+1 < len(graph) else graph[node["id"]]["parent"]           
+                graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parents]["id"])
                 # add ellipsed children information
-                graph[parent_ellipsed]["children"].extend(ellipsed_nodes)
+                graph[ellipsed_parents]["children"].extend(ellipsed_nodes)
             # add non-ellipsed children information
             node["children"].append(node["id"])
 
-        sents["sents"].append(graph)  
+        sents["sents"].append({"graph": graph})  
        
     return {"docs": [sents]}
 

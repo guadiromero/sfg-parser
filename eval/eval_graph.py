@@ -9,8 +9,8 @@ def count_nodes(graphs):
     """
 
     counter = 0
-    for graph in graphs["sentences"]:
-        counter += len(graph["tokens"])
+    for graph in graphs:
+        counter += len(graph)
 
     return counter
 
@@ -21,8 +21,8 @@ def count_nodes_per_label(graphs):
     """
 
     counter = {}
-    for graph in graphs["sentences"]:
-        for node in graph["tokens"]:
+    for graph in graphs:
+        for node in graph:
             label = node["tag"]
             if label not in counter:
                 counter[label] = 1
@@ -37,8 +37,8 @@ def get_parents(graph, node):
     Get unellipsed and ellipsed parents for a node.
     """
 
-    parent = graph["tokens"][node]["parent"]
-    ellipsed_parents = graph["tokens"][node]["parent_ellipsed"]
+    parent = graph[node]["parent"]
+    ellipsed_parents = graph[node]["ellipsed_parents"]
 
     return parent, ellipsed_parents
 
@@ -48,7 +48,7 @@ def get_position(graph, parent, node):
     Get position of a node among siblings.
     """
 
-    for position, child in enumerate(graph["tokens"][parent]["children"]):
+    for position, child in enumerate(graph[parent]["children"]):
         if child == node:
             return position
 
@@ -82,8 +82,8 @@ def label_is_correct(gold_graph, predicted_graph, node):
     Check that a node has the correct label.
     """
 
-    predicted_label = predicted_graph["tokens"][node]["tag"]
-    gold_label = gold_graph["tokens"][node]["tag"]
+    predicted_label = predicted_graph[node]["tag"]
+    gold_label = gold_graph[node]["tag"]
 
     if predicted_label == gold_label:
         return True
@@ -91,30 +91,48 @@ def label_is_correct(gold_graph, predicted_graph, node):
         return False
 
 
-def score(gold, predicted, exclude_ellipsis, ellipsis_only):
+def get_graphs(json_file):
+    """
+    Extract graphs from a json file.
+    """
+
+    graphs = []
+
+    with json_file.open(mode="r") as f:
+        docs = json.load(f)
+
+    for doc in docs["docs"]:
+        for sent in doc["sents"]:
+            graph = sent["graph"]
+            graphs.append(graph)
+
+    return graphs
+
+
+def score(gold_graphs, predicted_graphs, exclude_ellipsis, ellipsis_only):
     """
     Evaluate graphs.
     """
 
-    gold_nodes = count_nodes(gold)
-    predicted_nodes = count_nodes(predicted)
+    gold_nodes = count_nodes(gold_graphs)
+    predicted_nodes = count_nodes(predicted_graphs)
     correct_unlabeled = 0
     correct_labeled = 0
     correct_per_label = {}
-    gold_per_label = count_nodes_per_label(gold)
-    predicted_per_label = count_nodes_per_label(predicted)
+    gold_per_label = count_nodes_per_label(gold_graphs)
+    predicted_per_label = count_nodes_per_label(predicted_graphs)
 
-    for gold_graph, predicted_graph in zip(gold["sentences"], predicted["sentences"]):
+    for gold_graph, predicted_graph in zip(gold_graphs, predicted_graphs):
         # exclude graphs that contain/do not contain ellipsis if indicated as an argument
         if ellipsis_only:
-            if all(len(token["ellipsis_tag"]) == 0 for token in gold_graph["tokens"]):
+            if all(len(node["ellipsis_tag"]) == 0 for node in gold_graph):
                 break                          
         elif exclude_ellipsis:
-            if any(len(token["ellipsis_tag"]) != 0 for token in gold_graph["tokens"]):
+            if any(len(node["ellipsis_tag"]) != 0 for node in gold_graph):
                 break
         # count number of correct nodes
-        for node in range(len(gold_graph["tokens"])):
-            label = gold_graph["tokens"][node]["tag"]
+        for node in range(len(gold_graph)):
+            label = gold_graph[node]["tag"]
             if label not in correct_per_label:
                 correct_per_label[label] = {"correct_labeled": 0, "correct_unlabeled": 0}
             if edge_is_correct(gold_graph, predicted_graph, node):
@@ -156,13 +174,12 @@ def main(
     ellipsis_only: bool = typer.Option(False, help="Whether to only include graphs with ellipsed nodes"),
     ):
 
-    with gold_file.open(mode="r") as f:
-        gold = json.load(f)
+    gold_graphs = get_graphs(gold_file)
+    predicted_graphs = get_graphs(predicted_file)
 
-    with predicted_file.open(mode="r") as f:
-        predicted = json.load(f)
+    print(len(gold_graphs), len(predicted_graphs))
 
-    scores = score(gold, predicted, exclude_ellipsis, ellipsis_only)
+    scores = score(gold_graphs, predicted_graphs, exclude_ellipsis, ellipsis_only)
     print(scores)
 
 
