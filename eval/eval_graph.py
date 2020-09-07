@@ -177,8 +177,6 @@ def main(
     gold_graphs = get_graphs(gold_file)
     predicted_graphs = get_graphs(predicted_file)
 
-    print(len(gold_graphs), len(predicted_graphs))
-
     scores = score(gold_graphs, predicted_graphs, exclude_ellipsis, ellipsis_only)
     print(scores)
 
