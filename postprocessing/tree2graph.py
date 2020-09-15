@@ -24,6 +24,8 @@ def convert(input_file, right_label):
 
         # build graph
         t = ParentedTree.fromstring(tree)
+#        parent_clause = 0
+        parent_clauses = {}
         for index, st in enumerate(t.subtrees()):
             tree_positions[st.treeposition()] = index # keep track of indexes & tree positions
             node = {}
@@ -31,8 +33,8 @@ def convert(input_file, right_label):
             node["children"] = []
             node["parent"] = tree_positions[st.parent().treeposition()] if st.parent() != None else 0
             node["ellipsed_parents"] = []
-            node["tag"] = st.label().split("-ellipsis")[0]
-            ellipsis_tags = st.label().split("-ellipsis")[1:]
+            node["tag"] = st.label().split("ellipsis")[0] # -ellipsis
+            ellipsis_tags = st.label().split("ellipsis")[1:] # -ellipsis
             node["ellipsis_tags"] = ellipsis_tags
             if st.height() == 2:
                 node["terminal"] = "yes"
@@ -40,7 +42,12 @@ def convert(input_file, right_label):
             else:
                 node["terminal"] = "no"
                 node["text"] = ""
+            if node["tag"] == "CL":
+                for child in st.subtrees():
+                    parent_clauses[child.treeposition()] = index
             graph.append(node)  
+
+        parent_clauses = {tree_positions[pos]:parent_clauses[pos] for pos in parent_clauses}
 
         # recover ellipsed nodes
         for node in graph:
@@ -61,11 +68,24 @@ def convert(input_file, right_label):
                             else:
                                 tag_i += 1       
             for ellipsed_node in ellipsed_nodes:
-                # add ellipsed parent information
-                ellipsed_parents = graph[node["id"]+1]["parent"] if node["id"]+1 < len(graph) else graph[node["id"]]["parent"]           
-                graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parents]["id"])
+                # add ellipsed parent information            
+#                if node["id"]+1 < len(graph) and graph[node["id"]+1]["tag"] not in [",", ":", "``", '"', "-LRB-", "-RRB-"]:
+#                    if parent_clauses[node["id"]+1] == parent_clauses[node["id"]]:
+#                        ellipsed_parent = graph[node["id"]+1]["parent"]
+#                    else: 
+#                        ellipsed_parent = parent_clauses[node["id"]]
+#                else:
+#                    ellipsed_parent = graph[node["id"]]["parent"]   
+                if node["id"]+1 < len(graph):
+                    if parent_clauses[node["id"]+1] == parent_clauses[node["id"]]:
+                        ellipsed_parent = graph[node["id"]+1]["parent"]
+                    else: 
+                        ellipsed_parent = parent_clauses[node["id"]]
+                else:
+                    ellipsed_parent = parent_clauses[node["id"]]         
+                graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
                 # add ellipsed children information
-                graph[ellipsed_parents]["children"].append(ellipsed_node)
+                graph[ellipsed_parent]["children"].append(ellipsed_node)
             # add non-ellipsed children information
             if node["id"] != 0:
                 graph[parent]["children"].append(node["id"])

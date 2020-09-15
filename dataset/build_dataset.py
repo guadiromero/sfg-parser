@@ -4,6 +4,7 @@ import xml.etree.ElementTree as ET
 import json
 from tag_maps import TAGS_SFG as tag_map
 from collections import defaultdict
+from itertools import chain, combinations
 
 
 def get_function_label(node):
@@ -63,6 +64,59 @@ def count_ellipsis_types(graph):
     return ellipsis_types
 
 
+def select_spans(spans, target_terminals):
+    """
+    Select the shortest combination of spans for the target terminals.
+    """
+
+    def sliceable(xs):
+        """
+        Return a sliceable version of the iterable xs.
+        """
+        try:
+            xs[:0]
+            return xs
+        except TypeError:
+            return tuple(xs)
+
+    def partition(iterable):
+        s = sliceable(iterable)
+        n = len(s)
+        b, mid, e = [0], list(range(1, n)), [n]
+        getslice = s.__getitem__
+        splits = (d for i in range(n) for d in combinations(mid, i))
+        return [[s[sl] for sl in map(slice, chain(b, d), chain(d, e))]
+                for d in splits]
+
+    def filter(splits, spans):
+        """
+        Select the splits that are possible.
+        """
+        possible_splits = []
+        for split in splits:
+            if all([span in spans for span in split]):
+                possible_splits.append(split)   
+        return possible_splits     
+
+    splits = [[target_terminals[0:1], target_terminals[1:]], [target_terminals[:-1], target_terminals[-2:-1]]]
+    possible_splits = filter(splits, spans)
+
+    if len(possible_splits) > 0:
+        return possible_splits[0]
+    elif len(possible_splits) == 0 and len(target_terminals) < 10: # if the target is too long, just skip the sentence as it will take too long to compute
+        splits = partition(target_terminals)
+        possible_splits = filter(splits, spans)
+        # choose shortest split
+        shortest_len = min([len(split) for split in possible_splits])
+        for split in possible_splits:
+            if len(split) == shortest_len:
+                shortest_split = split
+        if shortest_len < 3: # also introduce a limit of ellipsed nodes, as the berkeley parser is not able to handle such long tags
+            return shortest_split
+
+    return None
+
+
 def xml2graph(root, text, tag_map):
     """
     Traverse a xml tree with first-depth search and convert it to a directed acyclic graph.
@@ -108,8 +162,7 @@ def xml2graph(root, text, tag_map):
                     ellipsed_node = False                     
             if ellipsed_node == True:
                 # add node span to its parent's children list
-                span = [subnode.get("idref") for subnode in node.iter() if subnode.tag == "ConstituentRef"]
-#                print("span: " + str(span))
+                span = [subnode[0].get("idref") for subnode in node.iter() if subnode.get("type") == "Ellipsis"]
                 # search for original node if there is ellipsis of ellipsis
                 for i, s in enumerate(span):
                     attempts = 0
@@ -123,18 +176,7 @@ def xml2graph(root, text, tag_map):
                                 break
                         span[i] = s  
                         attempts += 1                
-                # if the node consists only of punctuation, append to the ellipsed node before or after it (workaround for problem in the original SFG corpus)
-#                is_ellipsed_punct = False
-#                if len(span) == 1: 
-#                    for subnode in root.iter():
-#                        if subnode.get("id") == span[0] and subnode.get("type") == "Punctuation":
-#                            ellipsed_punct.append(subnode.get("id"))
-#                            is_ellipsed_punct = True
-#                            break
-#                if is_ellipsed_punct == False:
-#                    graph[parent]["children"].append(ellipsed_punct + span)
-#                    ellipsed_punct = []
-                graph[parent]["children"].append(span) # DELETE IF I KEEP THE BLOCK OF CODE ABOVE
+                graph[parent]["children"].append(span)
             if ellipsed_node == False:
                 # create a graph node
                 graph_id = len(tracking_list)
@@ -161,32 +203,38 @@ def xml2graph(root, text, tag_map):
     ellipsis = "no"
     bert_len = 0
     for node in graph:
-#        print(node["id"])
-#        print(node["children"])
         # finish constructing the graph
         for child_id, child in enumerate(node["children"]):
             if type(child) == list:
-#                print(child)
-                span_terminals = []
                 ellipsis = "yes" # record that there is at least one ellipsed node in the graph
                 no_match = True
                 for span_id, span in enumerate(tracking_list):
                     if set(child) == set(span):
-#                        print("match!")
                         # replace ellipsed node span for node id
                         node["children"][child_id] = span_id  
                         # add parent to the node's ellipsed parents list
                         graph[span_id]["ellipsed_parents"].append(node["id"]) 
                         no_match = False
                         break
-                    if len(span) == 1 and span[0] in child:
-                        span_terminals.append(span_id)
                 if no_match == True:
-#                    print("no match!")
-                    # if no nodes coincide with the ellipsed span, recover the terminals individually
-                    node["children"][child_id] = span_terminals
-                    for terminal in span_terminals:
-                        graph[terminal]["ellipsed_parents"].append(node["id"])
+                    # if no nodes coincide with the ellipsed span, get the shortest combination of spans
+                    selected_spans = select_spans(tracking_list, child) 
+                    if selected_spans == None:
+#                        print("too_long!")
+                        return None, None, None, None
+                    selected_spans_ids = []  
+                    for selected_span in selected_spans:
+                        found = "no"
+                        for span_id, span in enumerate(tracking_list):
+                            if set(span) == set(selected_span):
+                                selected_spans_ids.append(span_id)
+                                found = "yes"
+                                break
+                        if found == "no":
+                            print(found)
+                    node["children"][child_id] = selected_spans_ids
+                    for span_id in selected_spans_ids:
+                        graph[span_id]["ellipsed_parents"].append(node["id"])
         # flatten list of children
         flatten_children = []
         for child in graph[node["id"]]["children"]:
@@ -218,7 +266,7 @@ def xml2graph(root, text, tag_map):
     return string, graph, ellipsis, bert_len
 
 
-def gen_json(files, ellipsis_only, max_len):
+def gen_graphs(files, ellipsis_only, max_len):
     """
     Generate a dictionary containing sentence strings, graphs, and whether they contain ellipsis or not.
     """
@@ -227,7 +275,6 @@ def gen_json(files, ellipsis_only, max_len):
 
     for f in files:
         doc = {"doc": f.name, "sents": []}
-#        print(f.name)
 
         doc_tree = ET.parse(f).getroot()
         doc_text = doc_tree[0].text[9:-5]
@@ -236,6 +283,8 @@ def gen_json(files, ellipsis_only, max_len):
         sents = [parse for parse in doc_parses if parse.get("type") == "Clause_Complex"]
         for sent in sents:
             string, graph, ellipsis, bert_len = xml2graph(sent, doc_text, tag_map)
+            if string == None:
+                continue
             # exclude sentences without ellipsis
             if ellipsis_only == True and ellipsis == "no":
                 continue
@@ -253,7 +302,21 @@ def gen_json(files, ellipsis_only, max_len):
     return data
 
 
-def gen_splits(input_dir, output_dir, ellipsis_only, max_len):
+def gen_str(graphs):
+    """
+    Generate file containing sentences as strings
+    """
+
+    strings = "" 
+    for doc in graphs["docs"]:
+        for sent in doc["sents"]:
+            string = sent["string"]
+            strings += string + "\n"
+
+    return strings
+
+
+def gen_splits(input_dir, output_dir, ellipsis_only, max_len, gen_str_files):
     """
     Generate train/development/test sets following the conventional split for the Penn Treebank.
     """
@@ -264,34 +327,41 @@ def gen_splits(input_dir, output_dir, ellipsis_only, max_len):
     train_files = [f for f in input_files if f.name.startswith(("wsj_02","wsj_03", "wsj_04", "wsj_05", "wsj_06", "wsj_07", "wsj_08", "wsj_09", "wsj_10", "wsj_11", "wsj_12", "wsj_13", "wsj_14", "wsj_15", "wsj_16", "wsj_17", "wsj_18", "wsj_19", "wsj_20", "wsj_21"))]
     dev_files = [f for f in input_files if f.name.startswith("wsj_22")]
     test_files = [f for f in input_files if f.name.startswith("wsj_23")] 
-#    test_files = [f for f in input_files if f.name.startswith("wsj_2347")] # TEST
 
-    train_graphs = gen_json(train_files, ellipsis_only, max_len)
-    dev_graphs = gen_json(dev_files, ellipsis_only, max_len)
-    test_graphs = gen_json(test_files, ellipsis_only, max_len)
+    train_graphs = gen_graphs(train_files, ellipsis_only, max_len)
+    dev_graphs = gen_graphs(dev_files, ellipsis_only, max_len)
+    test_graphs = gen_graphs(test_files, ellipsis_only, max_len)
 
     # count total for each type of ellipsis
     print("Total for each type of ellipsis:\n")
-    for type_ in test_graphs["ellipsis_types"]:
+    for type_ in train_graphs["ellipsis_types"]:
         print(type_ + ": " + str(train_graphs["ellipsis_types"][type_] + dev_graphs["ellipsis_types"][type_] + test_graphs["ellipsis_types"][type_]))
-#        print(type_ + ": " + str(test_graphs["ellipsis_types"][type_])) # TEST
 
-    with open(output_dir.joinpath("train.json"), "w+") as test_json:
-        json.dump(test_graphs, test_json)
+    with open(output_dir.joinpath("train.json"), "w+") as train_json:
+        json.dump(train_graphs, train_json)
     with open(output_dir.joinpath("dev.json"), "w+") as dev_json:
         json.dump(dev_graphs, dev_json)
     with open(output_dir.joinpath("test.json"), "w+") as test_json:
         json.dump(test_graphs, test_json)
 
+    if gen_str_files:
+        with open(output_dir.joinpath("train.txt"), "w+") as train_str:
+            train_str.write(gen_str(train_graphs))
+        with open(output_dir.joinpath("dev.txt"), "w+") as dev_str:
+            dev_str.write(gen_str(dev_graphs))
+        with open(output_dir.joinpath("test.txt"), "w+") as test_str:
+            test_str.write(gen_str(test_graphs))     
+
 
 def main(
     input_dir: Path, 
     output_dir: Path,
+    gen_str_files: bool = typer.Option(False, help="Generate string files"),
     max_len: bool = typer.Option(False, help="Exclude sentences that exceed the maximum length allowed by BERT"),  
     ellipsis_only: bool = typer.Option(False, help="Exclude sentences that do not contain ellipsis"),
     ):
     
-    gen_splits(input_dir, output_dir, ellipsis_only, max_len)
+    gen_splits(input_dir, output_dir, gen_str_files, max_len, ellipsis_only)
 
 
 if __name__ == "__main__":

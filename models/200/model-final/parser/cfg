@@ -1,6 +1,0 @@
-{
-  "min_action_freq":1,
-  "learn_tokens":false,
-  "beam_width":1,
-  "beam_update_prob":1.0
-}

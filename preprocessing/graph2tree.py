@@ -14,7 +14,7 @@ def get_ellipsis_tag(graph, target_node):
             if node["id"] != graph[target_node]["id"]:
                 counter += 1
             else:
-                ellipsis_tag = "-ellipsis" + node["tag"] + str(counter)
+                ellipsis_tag = "ellipsis" + node["tag"] + str(counter) # -ellipsis
                 return ellipsis_tag
   
 
@@ -56,7 +56,7 @@ def get_string(graph, right_label):
     rev_positions = [pos for pos in reversed(positions)]
     for pos_i, pos in enumerate(rev_positions):
         label = tree[pos] if type(tree[pos]) == str else tree[pos].label()
-        if tree[pos].label().startswith("-ellipsis"):
+        if tree[pos].label().startswith("ellipsis"): # -ellipsis
             prev_pos = rev_positions[pos_i+1]
             tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
             del tree[pos]
