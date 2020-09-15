@@ -35,9 +35,9 @@ def count_nodes_per_label(graphs):
     return counter
 
 
-def count_ellipsed_nodes(graphs):
+def count_ellipsed_edges(graphs):
     """
-    Count number of ellipsed nodes.
+    Count number of nodes with ellipsed edges.
     """
 
     counter = 0
@@ -49,9 +49,9 @@ def count_ellipsed_nodes(graphs):
     return counter
 
 
-def count_ellipsed_nodes_per_label(graphs):
+def count_ellipsed_edges_per_label(graphs):
     """
-    Count number of ellipsed nodes per label.
+    Count number of nodes with ellipsed edges per label.
     """
 
     counter = {}
@@ -183,10 +183,10 @@ def score(gold_graphs, predicted_graphs, exclude_ellipsis=False, ellipsis_only=F
     """
 
     if ellipsis_only:
-        gold_nodes = count_ellipsed_nodes(gold_graphs)
-        predicted_nodes = count_ellipsed_nodes(predicted_graphs)   
-        gold_per_label = count_ellipsed_nodes_per_label(gold_graphs)
-        predicted_per_label = count_ellipsed_nodes_per_label(predicted_graphs)        
+        gold_nodes = count_ellipsed_edges(gold_graphs)
+        predicted_nodes = count_ellipsed_edges(predicted_graphs)   
+        gold_per_label = count_ellipsed_edges_per_label(gold_graphs)
+        predicted_per_label = count_ellipsed_edges_per_label(predicted_graphs)        
     else:     
         gold_nodes = count_nodes(gold_graphs)
         predicted_nodes = count_nodes(predicted_graphs)
@@ -268,11 +268,11 @@ def main(
     gold_graphs = get_graphs(gold_file)
     predicted_graphs = get_graphs(predicted_file)
 
-    scores_all_nodes = {"all_nodes": score(gold_graphs, predicted_graphs)}
-    scores_non_ellipsed_nodes = {"non_ellipsed_nodes": score(gold_graphs, predicted_graphs, exclude_ellipsis=True)}
-    scores_ellipsed_nodes = {"ellipsed_nodes": score(gold_graphs, predicted_graphs, ellipsis_only=True)}
+    scores_all_edges = {"all_edges": score(gold_graphs, predicted_graphs)}
+    scores_non_ellipsed_edges = {"non_ellipsed_edges": score(gold_graphs, predicted_graphs, exclude_ellipsis=True)}
+    scores_ellipsed_edges = {"ellipsed_edges": score(gold_graphs, predicted_graphs, ellipsis_only=True)}
 
-    print_scores([scores_all_nodes, scores_non_ellipsed_nodes, scores_ellipsed_nodes])
+    print_scores([scores_all_edges, scores_non_ellipsed_edges, scores_ellipsed_edges])
 
 
 if __name__ == "__main__":
