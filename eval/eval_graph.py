@@ -257,8 +257,7 @@ def print_scores(scores_list):
                 row.append(round(scores[row_header][column_header], 4)) 
             rows.append(row)
 
-    table = [column_headers,] + rows
-    print(tabulate(table))
+    print(tabulate(rows, headers=column_headers, tablefmt="github"))
 
 
 def main(
