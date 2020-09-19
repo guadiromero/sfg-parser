@@ -210,6 +210,14 @@ def score(gold_graphs, predicted_graphs, exclude_ellipsis=False, ellipsis_only=F
                 if label_is_correct(gold_graph, predicted_graph, gold_graph[node]["id"], exclude_ellipsis, ellipsis_only):
                     correct_labeled += 1
                     correct_per_label[label]["correct_labeled"] += 1
+            else: # ERROR ANALYSIS
+                if len(gold_graph[node]["ellipsed_parents"]) > 0 and ellipsis_only == True:
+                    if node in predicted_graph and len(predicted_graph[node]["ellipsed_parents"]) > 0:
+                        print(" ".join([gold_graph[w]["text"] for w in gold_graph if gold_graph[w]["text"] != ""]), node)
+
+    print(ellipsis_only)
+    print(gold_nodes, predicted_nodes)
+    print(correct_unlabeled)
 
     # I WILL MAKE THIS PART MORE READABLE LATER :D
     scores = {}
