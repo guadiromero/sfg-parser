@@ -237,10 +237,10 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                     if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
                         correct_labeled += 1 
 
-    print(total_gold_nodes)
-    print(total_predicted_nodes) 
-    print(correct_unlabeled)
-    print(correct_labeled)              
+#    print(total_gold_nodes)
+#    print(total_predicted_nodes) 
+#    print(correct_unlabeled)
+#    print(correct_labeled)              
 
     unlabeled_p = correct_unlabeled / total_predicted_nodes
     unlabeled_r = correct_unlabeled / total_gold_nodes
