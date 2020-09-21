@@ -16,6 +16,7 @@ def extract_deps(graphs):
         add_terminal_ids(graph)
         add_const_heads(graph)
         add_deps(graph)
+        add_ellipsed_deps(graph)
         # extract dependencies
         dep = []
         for node in graph:
@@ -26,7 +27,8 @@ def extract_deps(graphs):
                 dep_label = node["dep_label"]
                 ellipsed_dep_heads = node["ellipsed_dep_heads"]
                 ellipsed_dep_labels = node["ellipsed_dep_labels"]
-                dep.append({"token_id": token_id, "token": token, "dep_head": dep_head, "dep_label": dep_label, "ellipsed_dep_heads": ellipsed_dep_heads, "ellipsed_dep_labels": ellipsed_dep_labels})
+                graph_label = node["tag"]
+                dep.append({"token_id": token_id, "token": token, "dep_head": dep_head, "dep_label": dep_label, "ellipsed_dep_heads": ellipsed_dep_heads, "ellipsed_dep_labels": ellipsed_dep_labels, "graph_label": graph_label})
         deps.append(dep)
 
     return deps
@@ -61,7 +63,7 @@ def find_const_head(graph, node):
     if node["terminal"] == "yes":
         return node["terminal_id"]
     else:
-        children = [graph[child] for child in node["children"]]
+        children = [graph[child] for child in node["children"] if node["id"] not in graph[child]["ellipsed_parents"]]
         const_head = const_head_rules(children)
         return find_const_head(graph, const_head)
 
@@ -94,46 +96,71 @@ def add_deps(graph):
         if node["terminal"] == "no":
             dep_head = None
             dep_label = None
-            ellipsed_dep_heads = []
-            ellipsed_dep_labels = []
         elif node["terminal"] == "yes":
-            dep_head, dep_label = find_dep_head(graph, node)
-            ellipsed_dep_heads, ellipsed_dep_labels = find_ellipsed_dep_heads(graph, node)
+            dep_head, dep_label = find_dep_head(graph, graph[node["parent"]], node["terminal_id"])
         node["dep_head"] = dep_head
         node["dep_label"] = dep_label
-        node["ellipsed_dep_heads"] = ellipsed_dep_heads
-        node["ellipsed_dep_labels"] = ellipsed_dep_labels
 
 
-def find_dep_head(graph, node):
+def add_ellipsed_deps(graph):   
     """
     """
 
-    parent = graph[node["parent"]]
-    if parent["const_head"] != node["terminal_id"]:
+    terminal_ids = {}
+    for node in graph:
+        node["ellipsed_dep_heads"] = []
+        node["ellipsed_dep_labels"] = []
+        if node["terminal"] == "yes":
+            terminal_ids[node["terminal_id"]] = node["id"]
+
+    for node in graph:
+        ellipsed_dep_heads = []
+        ellipsed_dep_labels = []
+        for ellipsed_parent in node["ellipsed_parents"]:
+            ellipsed_dep_head = graph[ellipsed_parent]["const_head"]
+            ellipsed_dep_heads.append(ellipsed_dep_head)
+            ellipsed_dep_label = graph[ellipsed_parent]["tag"]
+            ellipsed_dep_labels.append(ellipsed_dep_label)
+        const_head = node["const_head"]
+        ellipsed_node = terminal_ids[const_head]
+        graph[ellipsed_node]["ellipsed_dep_heads"].extend(ellipsed_dep_heads)
+        graph[ellipsed_node]["ellipsed_dep_labels"].extend(ellipsed_dep_labels)
+
+    print("\n")
+    for node in graph:
+        print(node)
+        
+
+
+def find_dep_head(graph, parent, terminal_id):
+    """
+    """
+
+    if parent["const_head"] != terminal_id:
         return parent["const_head"], parent["tag"]
     else:
         # exception for the root
-        if node["terminal_id"] == graph[0]["const_head"]:
+        if terminal_id == graph[0]["const_head"]:
             return parent["const_head"], "CLX"
         else:
-            return find_dep_head(graph, parent)
+            return find_dep_head(graph, graph[parent["parent"]], terminal_id)
 
 
-def find_ellipsed_dep_heads(graph, node):
-    """
-    """
+#def find_ellipsed_dep_heads(graph, node):
+#    """
+#    """
 
-    ellipsed_parents = [graph[ellipsed_parent] for ellipsed_parent in node["ellipsed_parents"]]
-    ellipsed_dep_heads = []
-    ellipsed_dep_labels = []
+#    ellipsed_parents = [graph[ellipsed_parent] for ellipsed_parent in node["ellipsed_parents"]]
+#    ellipsed_dep_heads = []
+#    ellipsed_dep_labels = []
 
-    for ellipsed_parent in ellipsed_parents:
-        ellipsed_dep_head, ellipsed_dep_label = find_dep_head(graph, ellipsed_parent)
-        ellipsed_dep_heads.append(ellipsed_dep_head)
-        ellipsed_dep_labels.append(ellipsed_dep_label)
+#    for ellipsed_parent in ellipsed_parents:
+#        ellipsed_dep_head = ellipsed_parent["const_head"]
+#        ellipsed_dep_label = "LABEL"
+#        ellipsed_dep_heads.append(ellipsed_dep_head)
+#        ellipsed_dep_labels.append(ellipsed_dep_label)
 
-    return ellipsed_dep_heads, ellipsed_dep_labels
+#    return ellipsed_dep_heads, ellipsed_dep_labels
 
 
 def edge_is_correct(gold_node, predicted_node):
@@ -184,6 +211,17 @@ def ellipsed_labels_are_correct(gold_node, predicted_node):
         return False
 
 
+def is_punct(node):
+    """
+    Check if a node is punctuation.
+    """
+
+    if node["graph_label"] in [",", ":", "``", '"', "-LRB-", "-RRB-"]:
+        return True
+    else:
+        return False
+
+
 def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False):
     """
     """
@@ -202,6 +240,9 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
 
     for gold_dep, predicted_dep in zip(gold_deps, predicted_deps):
         for gold_node, predicted_node in zip(gold_dep, predicted_dep):
+            # skip punctuation
+            if is_punct(gold_node):
+                continue
             # count total of nodes
             if ellipsis_only:
                 if len(gold_node["ellipsed_dep_heads"]) > 0:
@@ -216,16 +257,16 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                 if len(gold_node["ellipsed_dep_heads"]) > 0:
                     if ellipsed_edges_are_correct(gold_node, predicted_node):
                         correct_unlabeled += 1
-                    if ellipsed_labels_are_correct(gold_node, predicted_node):
-                        correct_labeled += 1
-#                    else:
-#                        print("\n#############\n")
-#                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
-#                        for node in gold_dep:
-#                            print(node)
-#                       print("\n")
-#                        for node in predicted_dep:
-#                            print(node)
+                        if ellipsed_labels_are_correct(gold_node, predicted_node):
+                            correct_labeled += 1
+                    else:
+                        print("\n#############\n")
+                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
+                        for node in gold_dep:
+                            print(node)
+                        print("\n")
+                        for node in predicted_dep:
+                            print(node)
             elif exclude_ellipsis:
                 if edge_is_correct(gold_node, predicted_node):
                     correct_unlabeled += 1
@@ -305,9 +346,9 @@ def main(
     predicted_graphs = get_graphs(predicted_file)
     predicted_deps = extract_deps(predicted_graphs)
 
-    score(gold_deps, predicted_deps)
+#    score(gold_deps, predicted_deps)
     score(gold_deps, predicted_deps, ellipsis_only=True)
-    score(gold_deps, predicted_deps, exclude_ellipsis=True)
+#    score(gold_deps, predicted_deps, exclude_ellipsis=True)
 
 
 if __name__ == "__main__":
