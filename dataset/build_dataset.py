@@ -98,12 +98,7 @@ def select_spans(spans, target_terminals):
                 possible_splits.append(split)   
         return possible_splits     
 
-    splits = [[target_terminals[0:1], target_terminals[1:]], [target_terminals[:-1], target_terminals[-2:-1]]]
-    possible_splits = filter(splits, spans)
-
-    if len(possible_splits) > 0:
-        return possible_splits[0]
-    elif len(possible_splits) == 0 and len(target_terminals) < 10: # if the target is too long, just skip the sentence as it will take too long to compute
+    if len(target_terminals) < 10: # if the target is too long, just skip the sentence as it will take too long to compute
         splits = partition(target_terminals)
         possible_splits = filter(splits, spans)
         # choose shortest split
@@ -220,7 +215,6 @@ def xml2graph(root, text, tag_map):
                     # if no nodes coincide with the ellipsed span, get the shortest combination of spans
                     selected_spans = select_spans(tracking_list, child) 
                     if selected_spans == None:
-#                        print("too_long!")
                         return None, None, None, None
                     selected_spans_ids = []  
                     for selected_span in selected_spans:
@@ -230,8 +224,6 @@ def xml2graph(root, text, tag_map):
                                 selected_spans_ids.append(span_id)
                                 found = "yes"
                                 break
-                        if found == "no":
-                            print(found)
                     node["children"][child_id] = selected_spans_ids
                     for span_id in selected_spans_ids:
                         graph[span_id]["ellipsed_parents"].append(node["id"])
@@ -291,12 +283,11 @@ def gen_graphs(files, ellipsis_only, max_len):
             # exclude sentences that exceed the maximum length allowed by BERT
             if max_len == True and bert_len > 512: # maximum length = 512
                 continue
-            else:
-                doc["sents"].append({"string": string, "graph": graph, "ellipsis": ellipsis, "bert_len": bert_len})
-                data["total_sents"] += 1
-                ellipsis_types = count_ellipsis_types(graph)
-                for type_ in ellipsis_types:
-                    data["ellipsis_types"][type_] += ellipsis_types[type_]
+            doc["sents"].append({"string": string, "graph": graph, "ellipsis": ellipsis, "bert_len": bert_len})
+            data["total_sents"] += 1
+            ellipsis_types = count_ellipsis_types(graph)
+            for type_ in ellipsis_types:
+                data["ellipsis_types"][type_] += ellipsis_types[type_]
         data["docs"].append(doc)
 
     return data
@@ -346,11 +337,11 @@ def gen_splits(input_dir, output_dir, ellipsis_only, max_len, gen_str_files):
 
     if gen_str_files:
         with open(output_dir.joinpath("train.txt"), "w+") as train_str:
-            train_str.write(gen_str(train_graphs))
+           train_str.write(gen_str(train_graphs))
         with open(output_dir.joinpath("dev.txt"), "w+") as dev_str:
             dev_str.write(gen_str(dev_graphs))
         with open(output_dir.joinpath("test.txt"), "w+") as test_str:
-            test_str.write(gen_str(test_graphs))     
+           test_str.write(gen_str(test_graphs))     
 
 
 def main(
@@ -361,7 +352,7 @@ def main(
     ellipsis_only: bool = typer.Option(False, help="Exclude sentences that do not contain ellipsis"),
     ):
     
-    gen_splits(input_dir, output_dir, gen_str_files, max_len, ellipsis_only)
+    gen_splits(input_dir, output_dir, gen_str_files=False, max_len=True, ellipsis_only=True)
 
 
 if __name__ == "__main__":

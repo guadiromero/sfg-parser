@@ -126,9 +126,9 @@ def add_ellipsed_deps(graph):
         graph[ellipsed_node]["ellipsed_dep_heads"].extend(ellipsed_dep_heads)
         graph[ellipsed_node]["ellipsed_dep_labels"].extend(ellipsed_dep_labels)
 
-    print("\n")
-    for node in graph:
-        print(node)
+#    print("\n")
+#    for node in graph:
+#        print(node)
         
 
 
@@ -259,14 +259,14 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                         correct_unlabeled += 1
                         if ellipsed_labels_are_correct(gold_node, predicted_node):
                             correct_labeled += 1
-                    else:
-                        print("\n#############\n")
-                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
-                        for node in gold_dep:
-                            print(node)
-                        print("\n")
-                        for node in predicted_dep:
-                            print(node)
+#                    else:
+#                        print("\n#############\n")
+#                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
+#                        for node in gold_dep:
+#                            print(node)
+#                        print("\n")
+#                        for node in predicted_dep:
+#                            print(node)
             elif exclude_ellipsis:
                 if edge_is_correct(gold_node, predicted_node):
                     correct_unlabeled += 1
@@ -278,10 +278,12 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                     if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
                         correct_labeled += 1 
 
-#    print(total_gold_nodes)
-#    print(total_predicted_nodes) 
-#    print(correct_unlabeled)
-#    print(correct_labeled)              
+#    print("\n")
+#    print("Total of gold nodes: " + str(total_gold_nodes))
+#    print("Total of predicted nodes: " + str(total_predicted_nodes)) 
+#    print("Correct unlabeled nodes: " + str(correct_unlabeled))
+#    print("Correct labeled nodes: " + str(correct_labeled))  
+#    print("\n")            
 
     unlabeled_p = correct_unlabeled / total_predicted_nodes
     unlabeled_r = correct_unlabeled / total_gold_nodes
@@ -304,51 +306,15 @@ def main(
     predicted_file: Path, 
     ):
 
-    # TEST
-    gold_graph = [
-        {"id": 0, "children": [1, 9], "parent": None, "ellipsed_parents": [], "terminal": "no", "tag": "CLX", "text": ""},
-        {"id": 1, "children": [2, 3, 4], "parent": 0, "ellipsed_parents": [], "terminal": "no", "tag": "CL", "text": ""},
-        {"id": 2, "children": [], "parent": 1, "ellipsed_parents": [9], "terminal": "yes", "tag": "NG", "text": "he"},
-        {"id": 3, "children": [], "parent": 1, "ellipsed_parents": [], "terminal": "yes", "tag": "VG", "text": "ate"},
-        {"id": 4, "children": [5, 6], "parent": 1, "ellipsed_parents": [], "terminal": "no", "tag": "NG", "text": ""},
-        {"id": 5, "children": [], "parent": 4, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "pizza"},
-        {"id": 6, "children": [7, 8], "parent": 4, "ellipsed_parents": [], "terminal": "no", "tag": "PP", "text": ""},
-        {"id": 7, "children": [], "parent": 6, "ellipsed_parents": [], "terminal": "yes", "tag": "PREP", "text": "with"},
-        {"id": 8, "children": [], "parent": 6, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "anchovies"},
-        {"id": 9, "children": [10, 2, 11, 12], "parent": 0, "ellipsed_parents": [], "terminal": "no", "tag": "CL", "text": ""},
-        {"id": 10, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "CC", "text": "and"},
-        {"id": 11, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "VG", "text": "drank"},
-        {"id": 12, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "beer"},
-    ]
-
-    predicted_graph = [
-        {"id": 0, "children": [1, 9], "parent": None, "ellipsed_parents": [], "terminal": "no", "tag": "CLX", "text": ""},
-        {"id": 1, "children": [2, 3, 4], "parent": 0, "ellipsed_parents": [], "terminal": "no", "tag": "CL", "text": ""},
-        {"id": 2, "children": [], "parent": 1, "ellipsed_parents": [9], "terminal": "yes", "tag": "NG", "text": "he"},
-        {"id": 3, "children": [], "parent": 1, "ellipsed_parents": [], "terminal": "yes", "tag": "VG", "text": "ate"},
-        {"id": 4, "children": [5, 6], "parent": 1, "ellipsed_parents": [], "terminal": "no", "tag": "NG", "text": ""},
-        {"id": 5, "children": [], "parent": 4, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "pizza"},
-        {"id": 6, "children": [7, 8], "parent": 4, "ellipsed_parents": [], "terminal": "no", "tag": "PP", "text": ""},
-        {"id": 7, "children": [], "parent": 6, "ellipsed_parents": [], "terminal": "yes", "tag": "PREP", "text": "with"},
-        {"id": 8, "children": [], "parent": 6, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "anchovies"},
-        {"id": 9, "children": [10, 2, 11, 12], "parent": 0, "ellipsed_parents": [], "terminal": "no", "tag": "CL", "text": ""},
-        {"id": 10, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "CC", "text": "and"},
-        {"id": 11, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "VG", "text": "drank"},
-        {"id": 12, "children": [], "parent": 9, "ellipsed_parents": [], "terminal": "yes", "tag": "NG", "text": "beer"},
-    ]
-
-#    gold_graphs = [gold_graph,] # TEST
-#    predicted_graphs = [predicted_graph,] # TEST
-
     gold_graphs = get_graphs(gold_file)
     gold_deps = extract_deps(gold_graphs)
 
     predicted_graphs = get_graphs(predicted_file)
     predicted_deps = extract_deps(predicted_graphs)
 
-#    score(gold_deps, predicted_deps)
+    score(gold_deps, predicted_deps)
     score(gold_deps, predicted_deps, ellipsis_only=True)
-#    score(gold_deps, predicted_deps, exclude_ellipsis=True)
+    score(gold_deps, predicted_deps, exclude_ellipsis=True)
 
 
 if __name__ == "__main__":
