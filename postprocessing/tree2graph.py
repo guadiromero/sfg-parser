@@ -33,8 +33,8 @@ def convert(input_file, right_label):
             node["children"] = []
             node["parent"] = tree_positions[st.parent().treeposition()] if st.parent() != None else 0
             node["ellipsed_parents"] = []
-            node["tag"] = st.label().split("ellipsis")[0] # -ellipsis
-            ellipsis_tags = st.label().split("ellipsis")[1:] # -ellipsis
+            node["tag"] = st.label().split("ellipsis")[0]
+            ellipsis_tags = st.label().split("ellipsis")[1:]
             node["ellipsis_tags"] = ellipsis_tags
             if st.height() == 2:
                 node["terminal"] = "yes"
