@@ -315,33 +315,33 @@ def gen_splits(input_dir, output_dir, ellipsis_only, max_len, gen_str_files):
     input_files = sorted([f for f in input_dir.iterdir()])
 
     # files in each set
-    train_files = [f for f in input_files if f.name.startswith(("wsj_02","wsj_03", "wsj_04", "wsj_05", "wsj_06", "wsj_07", "wsj_08", "wsj_09", "wsj_10", "wsj_11", "wsj_12", "wsj_13", "wsj_14", "wsj_15", "wsj_16", "wsj_17", "wsj_18", "wsj_19", "wsj_20", "wsj_21"))]
-    dev_files = [f for f in input_files if f.name.startswith("wsj_22")]
+#    train_files = [f for f in input_files if f.name.startswith(("wsj_02","wsj_03", "wsj_04", "wsj_05", "wsj_06", "wsj_07", "wsj_08", "wsj_09", "wsj_10", "wsj_11", "wsj_12", "wsj_13", "wsj_14", "wsj_15", "wsj_16", "wsj_17", "wsj_18", "wsj_19", "wsj_20", "wsj_21"))]
+#    dev_files = [f for f in input_files if f.name.startswith("wsj_22")]
     test_files = [f for f in input_files if f.name.startswith("wsj_23")] 
 
-    train_graphs = gen_graphs(train_files, ellipsis_only, max_len)
-    dev_graphs = gen_graphs(dev_files, ellipsis_only, max_len)
+#    train_graphs = gen_graphs(train_files, ellipsis_only, max_len)
+#    dev_graphs = gen_graphs(dev_files, ellipsis_only, max_len)
     test_graphs = gen_graphs(test_files, ellipsis_only, max_len)
 
     # count total for each type of ellipsis
-    print("Total for each type of ellipsis:\n")
-    for type_ in train_graphs["ellipsis_types"]:
-        print(type_ + ": " + str(train_graphs["ellipsis_types"][type_] + dev_graphs["ellipsis_types"][type_] + test_graphs["ellipsis_types"][type_]))
+#    print("Total for each type of ellipsis:\n")
+#    for type_ in train_graphs["ellipsis_types"]:
+#        print(type_ + ": " + str(train_graphs["ellipsis_types"][type_] + dev_graphs["ellipsis_types"][type_] + test_graphs["ellipsis_types"][type_]))
 
-    with open(output_dir.joinpath("train.json"), "w+") as train_json:
-        json.dump(train_graphs, train_json)
-    with open(output_dir.joinpath("dev.json"), "w+") as dev_json:
-        json.dump(dev_graphs, dev_json)
+#    with open(output_dir.joinpath("train.json"), "w+") as train_json:
+#        json.dump(train_graphs, train_json)
+#    with open(output_dir.joinpath("dev.json"), "w+") as dev_json:
+#        json.dump(dev_graphs, dev_json)
     with open(output_dir.joinpath("test.json"), "w+") as test_json:
         json.dump(test_graphs, test_json)
 
-    if gen_str_files:
-        with open(output_dir.joinpath("train.txt"), "w+") as train_str:
-           train_str.write(gen_str(train_graphs))
-        with open(output_dir.joinpath("dev.txt"), "w+") as dev_str:
-            dev_str.write(gen_str(dev_graphs))
-        with open(output_dir.joinpath("test.txt"), "w+") as test_str:
-           test_str.write(gen_str(test_graphs))     
+#    if gen_str_files:
+#         with open(output_dir.joinpath("train.txt"), "w+") as train_str:
+#           train_str.write(gen_str(train_graphs))
+#        with open(output_dir.joinpath("dev.txt"), "w+") as dev_str:
+#            dev_str.write(gen_str(dev_graphs))
+#        with open(output_dir.joinpath("test.txt"), "w+") as test_str:
+#           test_str.write(gen_str(test_graphs))     
 
 
 def main(
