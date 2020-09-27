@@ -185,9 +185,12 @@ def get_string(graph, strategy):
     positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
     rev_positions = [pos for pos in reversed(positions)]
     for pos_i, pos in enumerate(rev_positions):
-        # append starting_node tag to the parent of the next node
+        # append starting_node tag to the previous non-terminal node
         if tree[pos].label().startswith("start"):
-            prev_pos = rev_positions[pos_i+1]
+            prev_pos_i = pos_i + 1
+            while tree[rev_positions[prev_pos_i]].height() == 2:
+                prev_pos_i += 1
+            prev_pos = rev_positions[prev_pos_i]
             tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
             del tree[pos]
         # append ending_node tag to the parent of the current node

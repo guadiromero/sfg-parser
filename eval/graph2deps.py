@@ -128,8 +128,7 @@ def add_ellipsed_deps(graph):
 
 #    print("\n")
 #    for node in graph:
-#        print(node)
-        
+#        print(node)        
 
 
 def find_dep_head(graph, parent, terminal_id):
@@ -259,14 +258,14 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                         correct_unlabeled += 1
                         if ellipsed_labels_are_correct(gold_node, predicted_node):
                             correct_labeled += 1
-                    else:
-                        print("\n#############\n")
-                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
-                        for node in gold_dep:
-                            print(node)
-                        print("\n")
-                        for node in predicted_dep:
-                            print(node)
+#                        else:
+#                            print("\n#############\n")
+#                            print("Wrong node: " + str(gold_node["token_id"]) + "\n")
+#                            for node in gold_dep:
+#                                print(node)
+#                            print("\n")
+#                            for node in predicted_dep:
+#                                print(node)
             elif exclude_ellipsis:
                 if edge_is_correct(gold_node, predicted_node):
                     correct_unlabeled += 1
@@ -312,9 +311,9 @@ def main(
     predicted_graphs = get_graphs(predicted_file)
     predicted_deps = extract_deps(predicted_graphs)
 
-#    score(gold_deps, predicted_deps)
+    score(gold_deps, predicted_deps)
     score(gold_deps, predicted_deps, ellipsis_only=True)
-#    score(gold_deps, predicted_deps, exclude_ellipsis=True)
+    score(gold_deps, predicted_deps, exclude_ellipsis=True)
 
 
 if __name__ == "__main__":
