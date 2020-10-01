@@ -63,6 +63,69 @@ Labeled F1: 89.37
 
 #####################################################################
 
+START WITHOUT POS
+
+
+Gold vs. Gold after transformations
+
+Results for all nodes
+Unlabeled Precision: 99.98
+Unlabeled Recall: 99.98
+Unlabeled F1: 99.98
+Labeled Precision: 99.94
+Labeled Recall: 99.94
+Labeled F1: 99.94
+
+
+Results for ellipsed nodes only
+Unlabeled Precision: 99.68
+Unlabeled Recall: 99.68
+Unlabeled F1: 99.68
+Labeled Precision: 99.03
+Labeled Recall: 99.03
+Labeled F1: 99.03
+
+
+Results for non-ellipsed nodes only
+Unlabeled Precision: 100.0
+Unlabeled Recall: 100.0
+Unlabeled F1: 100.0
+Labeled Precision: 100.0
+Labeled Recall: 100.0
+Labeled F1: 100.0
+
+
+Gold vs. Predicted
+
+Results for all nodes
+Unlabeled Precision: 86.6
+Unlabeled Recall: 86.6
+Unlabeled F1: 86.6
+Labeled Precision: 85.21
+Labeled Recall: 85.21
+Labeled F1: 85.21
+
+
+Results for ellipsed nodes only
+Unlabeled Precision: 65.45
+Unlabeled Recall: 40.58
+Unlabeled F1: 50.1
+Labeled Precision: 64.92
+Labeled Recall: 40.26
+Labeled F1: 49.7
+
+
+Results for non-ellipsed nodes only
+Unlabeled Precision: 91.01
+Unlabeled Recall: 91.01
+Unlabeled F1: 91.01
+Labeled Precision: 89.5
+Labeled Recall: 89.5
+Labeled F1: 89.5
+
+
+#####################################################################
+
 END
 
 
@@ -122,66 +185,3 @@ Unlabeled F1: 89.77
 Labeled Precision: 88.15
 Labeled Recall: 88.15
 Labeled F1: 88.15
-
-
-#####################################################################
-
-END EXTRA NODE
-
-
-Gold vs. Gold after transformations
-
-Results for all nodes
-Unlabeled Precision: 99.98
-Unlabeled Recall: 99.98
-Unlabeled F1: 99.98
-Labeled Precision: 99.92
-Labeled Recall: 99.92
-Labeled F1: 99.92
-
-
-Results for ellipsed nodes only
-Unlabeled Precision: 99.68
-Unlabeled Recall: 99.68
-Unlabeled F1: 99.68
-Labeled Precision: 98.7
-Labeled Recall: 98.7
-Labeled F1: 98.7
-
-
-Results for non-ellipsed nodes only
-Unlabeled Precision: 100.0
-Unlabeled Recall: 100.0
-Unlabeled F1: 100.0
-Labeled Precision: 100.0
-Labeled Recall: 100.0
-Labeled F1: 100.0
-
-
-Gold vs. Predicted
-
-Results for all nodes
-Unlabeled Precision: 88.82
-Unlabeled Recall: 88.82
-Unlabeled F1: 88.82
-Labeled Precision: 87.52
-Labeled Recall: 87.52
-Labeled F1: 87.52
-
-
-Results for ellipsed nodes only
-Unlabeled Precision: 76.95
-Unlabeled Recall: 60.71
-Unlabeled F1: 67.88
-Labeled Precision: 76.95
-Labeled Recall: 60.71
-Labeled F1: 67.88
-
-
-Results for non-ellipsed nodes only
-Unlabeled Precision: 91.11
-Unlabeled Recall: 91.11
-Unlabeled F1: 91.11
-Labeled Precision: 89.73
-Labeled Recall: 89.73
-Labeled F1: 89.73
