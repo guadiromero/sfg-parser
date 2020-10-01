@@ -258,14 +258,14 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                         correct_unlabeled += 1
                         if ellipsed_labels_are_correct(gold_node, predicted_node):
                             correct_labeled += 1
-#                        else:
-#                            print("\n#############\n")
-#                            print("Wrong node: " + str(gold_node["token_id"]) + "\n")
-#                            for node in gold_dep:
-#                                print(node)
-#                            print("\n")
-#                            for node in predicted_dep:
-#                                print(node)
+#                    else:
+#                        print("\n#############\n")
+#                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
+#                        for node in gold_dep:
+#                            print(node)
+#                        print("\n")
+#                        for node in predicted_dep:
+#                            print(node)
             elif exclude_ellipsis:
                 if edge_is_correct(gold_node, predicted_node):
                     correct_unlabeled += 1

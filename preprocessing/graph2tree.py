@@ -2,6 +2,7 @@ from pathlib import Path
 import typer
 import json
 from nltk import ParentedTree as Tree
+from nltk import Tree as NormalTree
 import re
 
 
@@ -52,61 +53,107 @@ def get_ellipsis_location(tree, target_tag):
                 counter += 1  
 
 
-def traverse_graph_no_strategy(graph, node):  
+def traverse_graph(graph):  
     """
     Convert a single graph to a phrase-structure tree, without encoding ellipsis.
     """
 
-    children = [int(c) for c in graph[node]["children"]]
-    tagged_children = []
-    for child in children:
-        ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
-        # if the child is explicit
-        if node not in ellipsed_parents:
-            if graph[child]["terminal"] == "yes":
-                tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
-            else:
-                tagged_children.append(traverse_graph_no_strategy(graph, child))
-           
-    tree = Tree(graph[node]["tag"], tagged_children)
+    def traverse(graph, node):
+
+        children = [int(c) for c in graph[node]["children"]]
+        tagged_children = []
+        for child in children:
+            ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
+            # if the child is explicit
+            if node not in ellipsed_parents:
+                if graph[child]["terminal"] == "yes":
+                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                else:
+                    tagged_children.append(traverse(graph, child))
+            
+        tree = Tree(graph[node]["tag"], tagged_children)
+
+        return tree
+
+    tree = traverse(graph, 0)
 
     return tree
   
 
-def traverse_graph_starting_node(graph, node):  
+def traverse_graph_start(graph):  
     """
     Convert a single graph to a phrase-structure tree, 
     encoding ellipsis by appendig a tag to the starting node of the ellipsis edge.
     """
 
-    children = [int(c) for c in graph[node]["children"]]
-    tagged_children = []
-    for child in children:
-        ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
-        # if the child is explicit
-        if node not in ellipsed_parents:
-            if graph[child]["terminal"] == "yes":
-                tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+    def traverse(graph, node):
+
+        children = [int(c) for c in graph[node]["children"]]
+        tagged_children = []
+        for child in children:
+            ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
+            # if the child is explicit
+            if node not in ellipsed_parents:
+                if graph[child]["terminal"] == "yes":
+                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                else:
+                    tagged_children.append(traverse(graph, child))
+            # if the child is ellipsed
             else:
-                tagged_children.append(traverse_graph_starting_node(graph, child))
-        # if the child is ellipsed
-        else:
-            ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
-            tagged_children.append(Tree(ellipsis_tag, []))
-           
-    tree = Tree(graph[node]["tag"], tagged_children)
+                ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
+                tagged_children.append(Tree(ellipsis_tag, []))
+            
+        tree = Tree(graph[node]["tag"], tagged_children)
 
-    return tree
+        return tree
+    
+    tree = traverse(graph, 0)
+    positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
+    rev_positions = [pos for pos in reversed(positions)]
+    for pos_i, pos in enumerate(rev_positions):
+        # append starting_node tag to the previous non-terminal node
+        if tree[pos].label().startswith("start"):
+            prev_pos_i = pos_i + 1
+#            if strategy == "start-no-pos":
+#                while tree[rev_positions[prev_pos_i]].height() == 2:
+#                    prev_pos_i += 1
+            prev_pos = rev_positions[prev_pos_i]
+            tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
+            del tree[pos]
+
+    return tree   
 
 
-def traverse_graph_ending_node(graph, node):  
+def traverse_graph_end(graph):  
     """
     Convert a single graph to a phrase-structure tree, 
     encoding ellipsis by appending a tag to the ending node of the ellipsis edge.
     """
 
     # get tree with starting_node tags
-    tree = traverse_graph_starting_node(graph, node)
+
+    def traverse(graph, node):
+
+        children = [int(c) for c in graph[node]["children"]]
+        tagged_children = []
+        for child in children:
+            ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
+            # if the child is explicit
+            if node not in ellipsed_parents:
+                if graph[child]["terminal"] == "yes":
+                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                else:
+                    tagged_children.append(traverse(graph, child))
+            # if the child is ellipsed
+            else:
+                ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
+                tagged_children.append(Tree(ellipsis_tag, []))
+            
+        tree = Tree(graph[node]["tag"], tagged_children)
+
+        return tree
+
+    tree = traverse(graph, 0)
 
     # get ending_node tags
     positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
@@ -134,70 +181,52 @@ def traverse_graph_ending_node(graph, node):
         if st.label().startswith("start"):
             del tree[st.treeposition()]
 
-    return tree
-
-
-def traverse_graph_both_nodes(graph, node):  
-    """
-    Convert a single graph to a phrase-structure tree, 
-    encoding ellipsis by appending a tag to both the starting and ending nodes of the ellipsis edge.
-    """
-
-    # get the with starting_node tags
-    tree = traverse_graph_starting_node(graph, node)
-
-    # get ending_node tags and modify starting_node tags to fit the both_nodes strategy scheme
-    positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
-    end_tags = []
-    ellipsis_counter = 0
-    for pos in positions:
-        if tree[pos].label().startswith("start"):
-            ellipsis_tag = tree[pos].label().split("start")[-1]
-            end_location = get_ellipsis_location(tree, ellipsis_tag)
-            tree[pos].set_label("start" + str(ellipsis_counter))
-            end_tag = "end" + str(ellipsis_counter)
-            end_tags.append((end_location, end_tag))
-            ellipsis_counter += 1
-
-    # insert ending_node tags
-    for index, st in enumerate(tree.subtrees()):
-        for end_location, end_tag in end_tags:
-            if st.treeposition() == end_location:
-                st.insert(index, Tree(end_tag, []))
-
-    return tree
-
-
-def get_string(graph, strategy):
-    """
-    Get string representation from a tree.
-    """
-
-    if strategy == "starting_node":
-        tree = traverse_graph_starting_node(graph, 0)
-    elif strategy == "ending_node":
-        tree = traverse_graph_ending_node(graph, 0)
-    elif strategy == "both_nodes":
-        tree = traverse_graph_both_nodes(graph, 0)
-    else:
-        tree = traverse_graph_no_strategy(graph, 0)
-
     positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
     rev_positions = [pos for pos in reversed(positions)]
     for pos_i, pos in enumerate(rev_positions):
-        # append starting_node tag to the previous non-terminal node
-        if tree[pos].label().startswith("start"):
-            prev_pos_i = pos_i + 1
-            while tree[rev_positions[prev_pos_i]].height() == 2:
-                prev_pos_i += 1
-            prev_pos = rev_positions[prev_pos_i]
-            tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
-            del tree[pos]
         # append ending_node tag to the parent of the current node
-        elif tree[pos].label().startswith("end"):
+        if tree[pos].label().startswith("end"):
             parent_pos = tree[pos].parent().treeposition()
             tree[parent_pos].set_label(tree[parent_pos].label() + tree[pos].label())
-            del tree[pos]
+            del tree[pos] 
+
+    return tree
+
+
+def traverse_graph_end_extra_node(graph):  
+    """
+    Convert a single graph to a phrase-structure tree, 
+    encoding ellipsis by appending a tag to the ending node of the ellipsis edge.
+    """
+
+    # get tree with starting_node tags
+    tree = traverse_graph_end(graph)
+
+    def traverse(tree):
+        children = []
+        for subtree in tree:
+            if type(subtree) == str:
+                children.append(subtree)
+            else:
+                splits = re.split("(end)", subtree.label())
+                const_tag = splits[0]
+                ellipsis_tag = "".join(splits[1:])  
+                if len(ellipsis_tag) > 0:
+                    children.append(NormalTree(subtree.label(), [NormalTree(const_tag, [sst for sst in subtree])]))
+                else:
+                    children.append(traverse(subtree))
+
+        return NormalTree(tree.label(), children)
+
+    tree = traverse(tree)
+
+    return tree
+
+
+def get_string(tree):
+    """
+    Get string representation from a tree.
+    """           
 
     tree_str = tree.pformat()
     tree_str_flat = ' '.join(tree_str.split())
@@ -216,8 +245,17 @@ def convert_treebank(input_dir, output_dir, strategy):
             trees = ""
             for doc in docs["docs"]:
                 for sent in doc["sents"]:
-                    tree = get_string(sent["graph"], strategy)
-                    trees += tree + "\n"
+                    graph = sent["graph"]
+                    if strategy == "start":
+                        tree = traverse_graph_start(graph)
+                    elif strategy == "end":
+                        tree = traverse_graph_end(graph)
+                    elif strategy == "end-extra-node":
+                        tree = traverse_graph_end_extra_node(graph)
+                    else:
+                        tree = traverse_graph(graph)
+                    tree_string = get_string(tree)
+                    trees += tree_string + "\n"
         with open(output_dir.joinpath(f.name).with_suffix(".txt"), "w+") as tree_files:
             tree_files.write(trees)
 
@@ -225,7 +263,7 @@ def convert_treebank(input_dir, output_dir, strategy):
 def main(
     input_dir: Path, 
     output_dir: Path, 
-    strategy: str = typer.Option("", help="Strategy for encoding ellipsis, can be starting_node, ending_node or both_nodes."),
+    strategy: str = typer.Option("", help="Strategy for encoding ellipsis."),
     ):
     
     convert_treebank(input_dir, output_dir, strategy)

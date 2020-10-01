@@ -1,6 +1,6 @@
 from pathlib import Path
 import typer
-from nltk import ParentedTree
+from nltk import Tree, ParentedTree
 import re
 import json
 
@@ -24,12 +24,40 @@ def split_tag(tag):
     return const_tag, start_tags, end_tags
 
 
-def get_basic_graph(tree):
+def remove_extra_nodes(tree):
+    """
+    Remove any extra nodes encoding ellipsis.
+    """
+
+    def traverse(tree):
+        children = []
+        for subtree in tree:
+            if type(subtree) == str:
+                children.append(subtree)
+            else:
+                if "end" in subtree.label():
+                    child = [sst for sst in subtree][0]
+                    children.append(Tree(subtree.label(), [sst for sst in child]))
+                else:
+                    children.append(traverse(subtree))
+
+        return Tree(tree.label(), children)
+
+    new_tree = traverse(tree)
+
+    return new_tree
+
+
+def get_basic_graph(tree, strategy):
     """
     Convert a phrase-structure tree to a basic graph, without the ellipsis edges.
     """
 
     t = ParentedTree.fromstring(tree)
+
+    if strategy == "end-extra-node":
+        t = remove_extra_nodes(t)
+        t = ParentedTree.convert(t)
 
     graph = []
     tree_positions = {}
@@ -60,12 +88,19 @@ def get_basic_graph(tree):
     # keep track of the parent clause for each node
     parent_clauses = {tree_positions[pos]:parent_clauses[pos] for pos in parent_clauses}
 
-    return graph, parent_clauses
+    # assign CLX as the parent clause for nodes which don't have a CL parent
+    for node in graph:
+        if node["id"] in parent_clauses:
+            node["parent_clause"] = parent_clauses[node["id"]]
+        else:
+            node["parent_clause"] = 0 # IS 0 THE BEST CHOICE HERE?
+
+    return graph
 
 
-def add_ellipsis_starting_node(graph, parent_clauses):
+def add_ellipsis_start_no_pos(graph):
     """
-    Add ellipsed edges to a basic graph, decoding ellipsis with the starting_node tags.
+    Add ellipsed edges to a basic graph, decoding ellipsis with the starting node (no pos) strategy.
     """
 
     for node in graph:
@@ -96,12 +131,12 @@ def add_ellipsis_starting_node(graph, parent_clauses):
                 while next_non_terminal_i < len(graph) and graph[next_non_terminal_i]["terminal"] == "yes":
                     next_non_terminal_i += 1
             if next_non_terminal_i < len(graph):
-                if parent_clauses[next_non_terminal_i] == parent_clauses[node["id"]]:
+                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
                     ellipsed_parent = graph[next_non_terminal_i]["parent"]
                 else: 
-                    ellipsed_parent = parent_clauses[node["id"]]
+                    ellipsed_parent = graph[node["id"]]["parent_clause"]
             else:
-                ellipsed_parent = parent_clauses[node["id"]]         
+                ellipsed_parent = graph[node["id"]]["parent_clause"]         
             graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
             # add ellipsed children information
             graph[ellipsed_parent]["children"].append(ellipsed_node)
@@ -112,9 +147,9 @@ def add_ellipsis_starting_node(graph, parent_clauses):
     return graph
 
 
-def add_ellipsis_ending_node(graph, parent_clauses):
+def add_ellipsis_start(graph):
     """
-    Add ellipsed edges to a basic graph, decoding ellipsis with the ending_node tags.
+    Add ellipsed edges to a basic graph, decoding ellipsis with the starting node strategy.
     """
 
     for node in graph:
@@ -135,14 +170,63 @@ def add_ellipsis_ending_node(graph, parent_clauses):
                             break
                         else:
                             tag_i += 1       
-        for ellipsed_node in ellipsed_nodes: 
-            if node["id"]+1 < len(graph):
-                if parent_clauses[node["id"]+1] == parent_clauses[node["id"]]:
-                    ellipsed_parent = graph[node["id"]+1]["parent"]
+        for ellipsed_node in ellipsed_nodes:
+            next_non_terminal_i = node["id"] + 1 
+            if next_non_terminal_i < len(graph):
+                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
+                    ellipsed_parent = graph[next_non_terminal_i]["parent"]
                 else: 
-                    ellipsed_parent = parent_clauses[node["id"]]
+                    ellipsed_parent = graph[node["id"]]["parent_clause"]
             else:
-                ellipsed_parent = parent_clauses[node["id"]]         
+                ellipsed_parent = graph[node["id"]]["parent_clause"]         
+            graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
+            # add ellipsed children information
+            graph[ellipsed_parent]["children"].append(ellipsed_node)
+        # add non-ellipsed children information
+        if node["id"] != 0:
+            graph[parent]["children"].append(node["id"])
+
+    return graph
+
+
+def add_ellipsis_end(graph):
+    """
+    Add ellipsed edges to a basic graph, decoding ellipsis with the ending node strategy.
+    """
+
+    # add start ellipsis tags
+    for node in graph:
+        end_tags = node["end_tags"]
+        ellipsed_locations = []
+        if len(end_tags) > 0:
+            for ellipsed_location in end_tags:
+                ellipsed_location_i = "".join(re.findall(r"\d+", ellipsed_location))
+                ellipsed_location_tag = re.sub(ellipsed_location_i, "", ellipsed_location)
+                # find the ellipsed node
+                tag_i = 0
+                for node2 in graph:
+                    if node2["tag"] == ellipsed_location_tag:
+                        if tag_i == int(ellipsed_location_i):
+                            ellipsed_locations.append(node2["id"])
+                            break
+                        else:
+                            tag_i += 1       
+        for ellipsed_location in ellipsed_locations:
+            graph[ellipsed_location]["start_tags"].append(node["id"])
+
+    # now decode ellipsis using the start tags
+    for node in graph:
+        parent = node["parent"]
+        ellipsed_nodes = node["start_tags"]      
+        for ellipsed_node in ellipsed_nodes:
+            next_non_terminal_i = node["id"] + 1 
+            if next_non_terminal_i < len(graph):
+                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
+                    ellipsed_parent = graph[next_non_terminal_i]["parent"]
+                else: 
+                    ellipsed_parent = graph[node["id"]]["parent_clause"]
+            else:
+                ellipsed_parent = graph[node["id"]]["parent_clause"]         
             graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
             # add ellipsed children information
             graph[ellipsed_parent]["children"].append(ellipsed_node)
@@ -165,10 +249,14 @@ def convert(input_file, strategy):
 
     for tree in trees:
         # get basic tree
-        graph, parent_clauses = get_basic_graph(tree)
+        graph = get_basic_graph(tree, strategy)
         # add secondary edges with a specific strategy for decoding ellipsis
-        if strategy == "starting-node":
-            graph = add_ellipsis_starting_node(graph, parent_clauses)
+        if strategy == "start":
+            graph = add_ellipsis_start(graph)
+        elif strategy == "end":
+            graph = add_ellipsis_end(graph)
+        elif strategy == "end-extra-node":
+            graph = add_ellipsis_end(graph)
 
         sents["sents"].append({"graph": graph})  
        
