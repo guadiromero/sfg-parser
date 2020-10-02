@@ -1,14 +1,13 @@
 from pathlib import Path
 import typer
 import json
-from nltk import ParentedTree as Tree
-from nltk import Tree as NormalTree
+from nltk import Tree, ParentedTree
 import re
 
 
 def get_ellipsis_tag_from_graph(graph, target_node):
     """
-    Given a graph and a node, get the starting_node ellipsis tag for it.
+    Given a graph and a node, get the starting node ellipsis tag for it.
     """
 
     counter = 0
@@ -23,7 +22,7 @@ def get_ellipsis_tag_from_graph(graph, target_node):
 
 def get_ellipsis_tag_from_tree(tree, target_position):
     """
-    Given a tree and a tree position, get the ending_node ellipsis tag for it.
+    Given a tree and a tree position, get the ending node ellipsis tag for it.
     """
 
     counter = 0
@@ -39,7 +38,7 @@ def get_ellipsis_tag_from_tree(tree, target_position):
 
 def get_ellipsis_location(tree, target_tag):
     """
-    Given a tree and an ending_node ellipsis tag, get the tree position for it.
+    Given a tree and an ending node ellipsis tag, get the tree position for it.
     """
 
     index = "".join(re.findall(r"\d+", target_tag))
@@ -56,6 +55,8 @@ def get_ellipsis_location(tree, target_tag):
 def traverse_graph(graph):  
     """
     Convert a single graph to a phrase-structure tree, without encoding ellipsis.
+
+    Example: (CLX (CL (NG (PRP They)) (VG (VBD were) (VBG drinking)) (NG (NN mate))) (CL (CONJG (CC and)) (VG (VBG eating)) (NG (NN pastafrola))))
     """
 
     def traverse(graph, node):
@@ -67,11 +68,11 @@ def traverse_graph(graph):
             # if the child is explicit
             if node not in ellipsed_parents:
                 if graph[child]["terminal"] == "yes":
-                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                    tagged_children.append(ParentedTree(graph[child]["tag"], [graph[child]["text"]]))
                 else:
                     tagged_children.append(traverse(graph, child))
             
-        tree = Tree(graph[node]["tag"], tagged_children)
+        tree = ParentedTree(graph[node]["tag"], tagged_children)
 
         return tree
 
@@ -84,6 +85,8 @@ def traverse_graph_start(graph):
     """
     Convert a single graph to a phrase-structure tree, 
     encoding ellipsis by appendig a tag to the starting node of the ellipsis edge.
+
+    Example: (CLX (CL (NG (PRP They)) (VG (VBD were) (VBG drinking)) (NG (NN mate))) (CL (CONJG (CCstartNG0 and)) (VGstartVBD0 (VBG eating)) (NG (NN pastafrola))))
     """
 
     def traverse(graph, node):
@@ -95,15 +98,59 @@ def traverse_graph_start(graph):
             # if the child is explicit
             if node not in ellipsed_parents:
                 if graph[child]["terminal"] == "yes":
-                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                    tagged_children.append(ParentedTree(graph[child]["tag"], [graph[child]["text"]]))
                 else:
                     tagged_children.append(traverse(graph, child))
             # if the child is ellipsed
             else:
                 ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
-                tagged_children.append(Tree(ellipsis_tag, []))
+                tagged_children.append(ParentedTree(ellipsis_tag, []))
             
-        tree = Tree(graph[node]["tag"], tagged_children)
+        tree = ParentedTree(graph[node]["tag"], tagged_children)
+
+        return tree
+    
+    tree = traverse(graph, 0)
+    positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
+    rev_positions = [pos for pos in reversed(positions)]
+    for pos_i, pos in enumerate(rev_positions):
+        # append starting_node tag to the previous node
+        if tree[pos].label().startswith("start"):
+            prev_pos_i = pos_i + 1
+            prev_pos = rev_positions[prev_pos_i]
+            tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
+            del tree[pos]
+
+    return tree  
+
+
+def traverse_graph_start_without_pos(graph):  
+    """
+    Convert a single graph to a phrase-structure tree, 
+    encoding ellipsis by appendig a tag to the starting node of the ellipsis edge.
+    Append ellipsis tags only to non-terminals.
+
+    Example: (CLX (CL (NG (PRP They)) (VG (VBD were) (VBG drinking)) (NG (NN mate))) (CL (CONJGstartNG0 (CC and)) (VGstartVBD0 (VBG eating)) (NG (NN pastafrola))))
+    """
+
+    def traverse(graph, node):
+
+        children = [int(c) for c in graph[node]["children"]]
+        tagged_children = []
+        for child in children:
+            ellipsed_parents = [int(p) for p in graph[child]["ellipsed_parents"]]
+            # if the child is explicit
+            if node not in ellipsed_parents:
+                if graph[child]["terminal"] == "yes":
+                    tagged_children.append(ParentedTree(graph[child]["tag"], [graph[child]["text"]]))
+                else:
+                    tagged_children.append(traverse(graph, child))
+            # if the child is ellipsed
+            else:
+                ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
+                tagged_children.append(ParentedTree(ellipsis_tag, []))
+            
+        tree = ParentedTree(graph[node]["tag"], tagged_children)
 
         return tree
     
@@ -114,23 +161,24 @@ def traverse_graph_start(graph):
         # append starting_node tag to the previous non-terminal node
         if tree[pos].label().startswith("start"):
             prev_pos_i = pos_i + 1
-#            if strategy == "start-no-pos":
-#                while tree[rev_positions[prev_pos_i]].height() == 2:
-#                    prev_pos_i += 1
+            while tree[rev_positions[prev_pos_i]].height() == 2:
+                prev_pos_i += 1
             prev_pos = rev_positions[prev_pos_i]
             tree[prev_pos].set_label(tree[prev_pos].label() + tree[pos].label())
             del tree[pos]
 
-    return tree   
+    return tree  
 
 
 def traverse_graph_end(graph):  
     """
     Convert a single graph to a phrase-structure tree, 
     encoding ellipsis by appending a tag to the ending node of the ellipsis edge.
+
+    Example: (CLX (CL (NGendCC0 (PRP They)) (VG (VBDendVG1 were) (VBG drinking)) (NG (NN mate))) (CL (CONJG (CC and)) (VG (VBG eating)) (NG (NN pastafrola))))
     """
 
-    # get tree with starting_node tags
+    # get tree with starting node tags
 
     def traverse(graph, node):
 
@@ -141,21 +189,21 @@ def traverse_graph_end(graph):
             # if the child is explicit
             if node not in ellipsed_parents:
                 if graph[child]["terminal"] == "yes":
-                    tagged_children.append(Tree(graph[child]["tag"], [graph[child]["text"]]))
+                    tagged_children.append(ParentedTree(graph[child]["tag"], [graph[child]["text"]]))
                 else:
                     tagged_children.append(traverse(graph, child))
             # if the child is ellipsed
             else:
                 ellipsis_tag = get_ellipsis_tag_from_graph(graph, child)
-                tagged_children.append(Tree(ellipsis_tag, []))
+                tagged_children.append(ParentedTree(ellipsis_tag, []))
             
-        tree = Tree(graph[node]["tag"], tagged_children)
+        tree = ParentedTree(graph[node]["tag"], tagged_children)
 
         return tree
 
     tree = traverse(graph, 0)
 
-    # get ending_node tags
+    # get ending node tags
     positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
     end_tags = []
     for pos_i, pos in enumerate(positions):
@@ -168,13 +216,13 @@ def traverse_graph_end(graph):
             end_tag = get_ellipsis_tag_from_tree(tree, positions[start_location])
             end_tags.append((end_location, end_tag))
 
-    # insert ending_node tags
+    # insert ending node tags
     for index, st in enumerate(tree.subtrees()):
         for end_location, end_tag in end_tags:
             if st.treeposition() == end_location:
-                st.insert(index, Tree(end_tag, []))
+                st.insert(index, ParentedTree(end_tag, []))
 
-    # delete starting_node tags
+    # delete starting node tags
     subtrees = [st for st in tree.subtrees()]
     reversed_subtrees = [st for st in reversed(subtrees)]
     for st in reversed_subtrees:
@@ -184,7 +232,7 @@ def traverse_graph_end(graph):
     positions = [pos for pos in tree.treepositions() if pos not in tree.treepositions("leaves")]
     rev_positions = [pos for pos in reversed(positions)]
     for pos_i, pos in enumerate(rev_positions):
-        # append ending_node tag to the parent of the current node
+        # append ending node tag to the parent of the current node
         if tree[pos].label().startswith("end"):
             parent_pos = tree[pos].parent().treeposition()
             tree[parent_pos].set_label(tree[parent_pos].label() + tree[pos].label())
@@ -196,11 +244,15 @@ def traverse_graph_end(graph):
 def traverse_graph_end_extra_node(graph):  
     """
     Convert a single graph to a phrase-structure tree, 
-    encoding ellipsis by appending a tag to the ending node of the ellipsis edge.
+    encoding ellipsis by wrapping the ending node of the ellipsis edge with an extra node.
+
+    Example: (CLX (CL (NGendCC0 (NG (PRP They))) (VG (VBDendVG1 (VBD were)) (VBG drinking)) (NG (NN mate))) (CL (CONJG (CC and)) (VG (VBG eating)) (NG (NN pastafrola))))
     """
 
-    # get tree with starting_node tags
+    # get tree with ending tags
     tree = traverse_graph_end(graph)
+
+    # wrap each constituent that has ending tags with an extra node
 
     def traverse(tree):
         children = []
@@ -212,11 +264,11 @@ def traverse_graph_end_extra_node(graph):
                 const_tag = splits[0]
                 ellipsis_tag = "".join(splits[1:])  
                 if len(ellipsis_tag) > 0:
-                    children.append(NormalTree(subtree.label(), [NormalTree(const_tag, [sst for sst in subtree])]))
+                    children.append(Tree(subtree.label(), [Tree(const_tag, [sst for sst in subtree])]))
                 else:
                     children.append(traverse(subtree))
 
-        return NormalTree(tree.label(), children)
+        return Tree(tree.label(), children)
 
     tree = traverse(tree)
 
@@ -248,12 +300,12 @@ def convert_treebank(input_dir, output_dir, strategy):
                     graph = sent["graph"]
                     if strategy == "start":
                         tree = traverse_graph_start(graph)
+                    elif strategy == "start-without-pos":
+                        tree = traverse_graph_start_without_pos(graph)
                     elif strategy == "end":
                         tree = traverse_graph_end(graph)
                     elif strategy == "end-extra-node":
                         tree = traverse_graph_end_extra_node(graph)
-                    else:
-                        tree = traverse_graph(graph)
                     tree_string = get_string(tree)
                     trees += tree_string + "\n"
         with open(output_dir.joinpath(f.name).with_suffix(".txt"), "w+") as tree_files:
@@ -263,7 +315,7 @@ def convert_treebank(input_dir, output_dir, strategy):
 def main(
     input_dir: Path, 
     output_dir: Path, 
-    strategy: str = typer.Option("", help="Strategy for encoding ellipsis."),
+    strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start / start-without-pos / end / end-extra-node"),
     ):
     
     convert_treebank(input_dir, output_dir, strategy)

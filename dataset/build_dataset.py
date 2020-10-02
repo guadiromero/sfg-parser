@@ -128,7 +128,6 @@ def xml2graph(root, text, tag_map):
     tracking_list = [] # list of terminal spans
     terminals = [] # list of the sentence tokens
     parent_clause = None # keep track of the parent clause
-    ellipsed_punct = [] # ellipsed punctuation that constitutes a node of its own
 
     # push the root of the tree to the stack
     stack.append((root, 0))
@@ -218,11 +217,9 @@ def xml2graph(root, text, tag_map):
                         return None, None, None, None
                     selected_spans_ids = []  
                     for selected_span in selected_spans:
-                        found = "no"
                         for span_id, span in enumerate(tracking_list):
                             if set(span) == set(selected_span):
                                 selected_spans_ids.append(span_id)
-                                found = "yes"
                                 break
                     node["children"][child_id] = selected_spans_ids
                     for span_id in selected_spans_ids:

@@ -1,12 +1,30 @@
 from pathlib import Path
 import typer
 import json
-from eval_graph import get_graphs
 from tag_ranks import TAG_RANKS
+
+
+def get_graphs(json_file):
+    """
+    Extract graphs from a json file.
+    """
+
+    graphs = []
+
+    with json_file.open(mode="r") as f:
+        docs = json.load(f)
+
+    for doc in docs["docs"]:
+        for sent in doc["sents"]:
+            graph = sent["graph"]
+            graphs.append(graph)
+
+    return graphs
 
 
 def extract_deps(graphs):
     """
+    Extract dependencies from a graph.
     """
 
     deps = []
@@ -36,6 +54,7 @@ def extract_deps(graphs):
 
 def add_terminal_ids(graph):
     """
+    Enumerate terminals in a graph.
     """
 
     terminal_counter = 0
@@ -49,6 +68,7 @@ def add_terminal_ids(graph):
 
 def add_const_heads(graph):
     """
+    Add constituent heads to a graph.
     """
 
     for node in graph:
@@ -58,6 +78,7 @@ def add_const_heads(graph):
 
 def find_const_head(graph, node):
     """
+    Choose a terminal to be the head of a constituent.
     """
 
     if node["terminal"] == "yes":
@@ -70,6 +91,7 @@ def find_const_head(graph, node):
 
 def const_head_rules(children):
     """
+    Rules for choosing the head of a constituent.
     """
 
     ranks = []
@@ -90,6 +112,7 @@ def const_head_rules(children):
 
 def add_deps(graph):   
     """
+    Add dependencies for explicit edges in a graph.
     """
 
     for node in graph:
@@ -104,6 +127,7 @@ def add_deps(graph):
 
 def add_ellipsed_deps(graph):   
     """
+    Add dependencies for ellipsed edges in a graph.
     """
 
     terminal_ids = {}
@@ -124,15 +148,12 @@ def add_ellipsed_deps(graph):
         const_head = node["const_head"]
         ellipsed_node = terminal_ids[const_head]
         graph[ellipsed_node]["ellipsed_dep_heads"].extend(ellipsed_dep_heads)
-        graph[ellipsed_node]["ellipsed_dep_labels"].extend(ellipsed_dep_labels)
-
-#    print("\n")
-#    for node in graph:
-#        print(node)        
+        graph[ellipsed_node]["ellipsed_dep_labels"].extend(ellipsed_dep_labels)      
 
 
 def find_dep_head(graph, parent, terminal_id):
     """
+    Find the dependency head for a terminal node.
     """
 
     if parent["const_head"] != terminal_id:
@@ -145,25 +166,9 @@ def find_dep_head(graph, parent, terminal_id):
             return find_dep_head(graph, graph[parent["parent"]], terminal_id)
 
 
-#def find_ellipsed_dep_heads(graph, node):
-#    """
-#    """
-
-#    ellipsed_parents = [graph[ellipsed_parent] for ellipsed_parent in node["ellipsed_parents"]]
-#    ellipsed_dep_heads = []
-#    ellipsed_dep_labels = []
-
-#    for ellipsed_parent in ellipsed_parents:
-#        ellipsed_dep_head = ellipsed_parent["const_head"]
-#        ellipsed_dep_label = "LABEL"
-#        ellipsed_dep_heads.append(ellipsed_dep_head)
-#        ellipsed_dep_labels.append(ellipsed_dep_label)
-
-#    return ellipsed_dep_heads, ellipsed_dep_labels
-
-
 def edge_is_correct(gold_node, predicted_node):
     """
+    Check whether a node points to the correct head.
     """
 
     if gold_node["dep_head"] == predicted_node["dep_head"]:
@@ -174,6 +179,7 @@ def edge_is_correct(gold_node, predicted_node):
 
 def label_is_correct(gold_node, predicted_node):
     """
+    Check whether a node points to the correct head with the correct label.
     """
 
     if gold_node["dep_label"] == predicted_node["dep_label"]:
@@ -184,6 +190,7 @@ def label_is_correct(gold_node, predicted_node):
 
 def ellipsed_edges_are_correct(gold_node, predicted_node):
     """
+    Check whether a node points to the correct ellipsed heads.
     """
 
     if set(gold_node["ellipsed_dep_heads"]) == set(predicted_node["ellipsed_dep_heads"]):
@@ -194,6 +201,7 @@ def ellipsed_edges_are_correct(gold_node, predicted_node):
 
 def ellipsed_labels_are_correct(gold_node, predicted_node):
     """
+    Check whether a node points to the correct ellipsed heads with the correct labels.
     """
 
     gold_tuples = set()
@@ -223,6 +231,7 @@ def is_punct(node):
 
 def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False):
     """
+    Score a graph.
     """
 
     if ellipsis_only:
@@ -258,6 +267,7 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                         correct_unlabeled += 1
                         if ellipsed_labels_are_correct(gold_node, predicted_node):
                             correct_labeled += 1
+                    # inspect wrong nodes
 #                    else:
 #                        print("\n#############\n")
 #                        print("Wrong node: " + str(gold_node["token_id"]) + "\n")
@@ -275,14 +285,7 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                 if edge_is_correct(gold_node, predicted_node) and ellipsed_edges_are_correct(gold_node, predicted_node):
                     correct_unlabeled += 1
                     if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
-                        correct_labeled += 1 
-
-#    print("\n")
-#    print("Total of gold nodes: " + str(total_gold_nodes))
-#    print("Total of predicted nodes: " + str(total_predicted_nodes)) 
-#    print("Correct unlabeled nodes: " + str(correct_unlabeled))
-#    print("Correct labeled nodes: " + str(correct_labeled))  
-#    print("\n")            
+                        correct_labeled += 1           
 
     unlabeled_p = correct_unlabeled / total_predicted_nodes
     unlabeled_r = correct_unlabeled / total_gold_nodes

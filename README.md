@@ -1,189 +1,157 @@
-# A Parser for Systemic Functional Grammar
+# Transformations for tractable SFG parsing
+
+## Requirements
+
+Install [Typer](https://typer.tiangolo.com/) and [NLTK](https://www.nltk.org/).
+
+```
+pip install typer
+pip install --user -U nltk
+```
+
+Follow the official instructions to install the [Berkeley parser](https://github.com/nikitakit/self-attentive-parser).
+
+## Dataset
+
+Build the ellipsis corpus by converting the original SFGbank to graphs and using the conventional splits of the Penn Treebank:
+
+- Training: Sections 2-21 of the WSJ
+- Development: Section 22 of the WSJ
+- Testing: Section 23 of the WSJ
+
+The graphs contain main edges and secondary edges pointing to ellipsed constituents.
+
+Usage: 
+```
+python dataset/build_dataset.py [OPTIONS] INPUT_DIR OUTPUT_DIR
+```
+
+| Argument        | Type     | Description                                                      | Default |
+|-----------------|----------|------------------------------------------------------------------|---------|
+| INPUT_DIR       | Required | Path to the directory containing the original SFGbank            | -       |
+| OUTPUT_DIR      | Required | Path to the directory where to save the dataset                  | -       |
+| --gen-str-files | Optional | Exclude sentences that exceed the maximum length allowed by BERT | False   |
+| --max-len       | Optional | Exclude sentences that do not contain ellipsis                   | False   |
+
+Example:
+```
+python dataset/build_dataset.py data/sfgbank data/graphs --gen-str-files --max-len
+```
 
 ## Preprocessing
 
-### Conversion of constituency from XML to Penn Treebank format
-
-The SFG data was converted from XML to Penn Treebank format by linearizing the trees with first-depth search and mapping the constituency tags. Sentences that exceeded the maximum sequence length allowed (512) were deleted (103 out of 167066), giving a total of 166963 sentences. Type this command line if you want to convert the data yourself.
-
-Usage:
-
-```
-python preprocessing/xml2ptb.py -input-dir 'path to the directory containing the XML data files to convert' -output-ptb-dir 'path to the directory where to save the converted data files in PTB format' --output-str-dir 'path to the directory where to save the data files as strings' --ellipsis-method 'str indicating the method for ellipsis recovery' --max-len 'maximum sentence length allowed'
-```
-
-Example:
-
-```
-python preprocessing/xml2ptb.py -input-dir data/sfgbank-unsplit-xml -output-ptb-dir data/sfgbank-unsplit-ptb-left-label --output-str-dir data/sfgbank-unsplit-str --ellipsis-method 'left_label'
-```
-
-### Dataset split
-
-We follow the conventional splits of the Penn Treebank, using sections 2-21 of the WSJ data for training, section 22 as development set and 23 as test set.
-
-Usage:
-
-```
-python preprocessing/build_dataset.py -input-dir 'path to the directory containing the data files' -output-dir 'path to the directory where to save the train/dev/test datasets' -data-name 'name of the data to save'
-```
-
-Example:
-
-```
-python preprocessing/build_dataset.py -input-dir data/sfgbank-unsplit-ptb -output-dir data/sfgbank-split-ptb -data-name sfgbank
-```
-
-These output files were used to train and evaluate the Berkeley parser.
-
-A README is created in the output directory, listing the files contained in each split.
-
-### Conversion of constituency Penn Treebank format to dependency CoNLL format
-
-The train/dev/test splits were converted from the constituency Penn Treebank format to the dependency CoNLL format using [StanfordNLP](https://nlp.stanford.edu/software/lex-parser.html#Download) (see relevant [FAQ](https://nlp.stanford.edu/software/parser-faq.shtml#s) and [StanfordNLP manual](https://nlp.stanford.edu/software/dependencies_manual.pdf)).
-
-The conversion was done by using the following command for each of the splits:
-
-```
-java -cp stanford-parser-full-2018-10-17/stanford-parser.jar edu.stanford.nlp.trees.EnglishGrammaticalStructure -treeFile data/sfgbank-split-ptb/sfg-train.ptb -basic -conllx > data/sfgbank-split-conll/sfg-train.conll
-```
-
-### Conversion of dependency CoNLL format to spaCy's JSON format
-
-The fine-grained PoS tags in each of the splits were mapped to [spaCy's coarse-grained tags](https://github.com/explosion/spaCy/blob/master/spacy/lang/en/tag_map.py), using the following script:
-
-Usage:
-
-```
-python preprocessing/conll2spacy.py -input-file 'path to the input file' -output-file 'path to the output file'
-```
-
-Example:
-
-```
-python preprocessing/conll2spacy.py -input-file data/sfgbank-split-conll/sfgbank-train.conll -output-file data/sfgbank-split-conll-coarse/sfgbank-train.conll
-```
-
-The splits were then converted from CoNLL to JSON format by using [spaCy's converter](https://spacy.io/api/cli#convert):
-
-```
-python -m spacy convert data/sfgbank-split-conll-coarse/sfgbank-train.conll data/sfgbank-split-json/ --converter conll
-```
-
-These output files were used to train and evaluate spaCy's dependency parser
-
-### Conversion of JSON format to raw text
-
-This function outputs the raw text that is fed to the parsers for evaluation.
-
-Usage:
-
-```
-python preprocessing/json2txt.py -input-file 'path to the input file in json format' -output-file 'path to the file where to save the output in txt format'
-```
-
-Example:
-```
-python preprocessing/json2txt.py -input-file data/sfgbank-split-json/sfgbank-test.json -output-file data/sfgbank-split-text/sfgbank-test.txt 
-```
-
-## Constituency parsing
-
-### Training
-
-The [BERT-based Berkeley Neural Parser](https://github.com/nikitakit/self-attentive-parser) was trained with the SFG dataset using the following command:
-
-```
-python src/main.py train --use-bert --model-path-base models/en_bert_sfg --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/sfgbank-split-ptb/sfgbank-train.ptb --dev-path data/sfgbank-split-ptb/sfgbank-dev.ptb --predict-tags
-```
-
-### Evaluation
-
-The trained model was tested using the following command:
-
-```
-python src/main.py test --model-path-base models/en_bert_sfg_dev\=96.07.pt --test-path data/sfgbank-test.ptb 
-```
-
-These are the scores achieved by our model, as well as the three models provided in the Berkeley Parser repository.
-
-|                                  | LR          | LP             | F1          |
-|----------------------------------|-------------|----------------|-------------|
-| CharLSTM + Penn_Treebank         | 93.20       | 93.90          | 93.55       |
-| Transformer_ELMO + Penn_Treebank | 94.85       | 95.40          | 95.13       |
-| Transformer_BERT + Penn_Treebank | 95.41       | 95.99          | 95.70       |
-| Transformer_BERT + SFG_Treebank  | 95.51       | 95.79          | 95.65       |
-
-
-## Dependency parsing
-
-### Training
-
-spaCy's v3 dependency parser was trained using the following [command line](https://spacy.io/api/cli#train):
-
-```
-spacy train data/sfgbank-split-json/sfgbank-train.json data/sfgbank-split-json/sfgbank-dev.json config.cfg -o models/spacy-trained-parser
-```
-
-### Evaluation
-
-The model was evaluated with the following command line:
-
-```
-python -m spacy evaluate models/model-1 data/sfgbank-split-json/sfgbank-test.json -G > models/model-1/results.txt
-```
-
-The following different models and their accuracy scores can be found in the `models` and `results` directories, respectively.
-
-- `results-200.txt`: Trained on a sample of 200 sentences (80:20 split for train/dev) and evaluated on those same 200 sentences.
-
-- `results-200-dev.txt`: Trained on a sample of 200 sentences (80:20 split for train/dev) and evaluated on the dev split.
-
-- `results-6000.txt`: Trained on a sample of 6000 sentences (5000 train/1000 dev) and evaluated on those same 6000 sentences.
-
-- `results-6000-dev.txt`: Trained on a sample of 6000 sentences (5000 train/1000 dev) and evaluated on the dev split.
-
-- `results-full-model-best.txt`: Best model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing. 
-
-- `results-full-model-final.txt`: Final model trained on the full corpus, with a split of 80% for training, 10% for development and 10% for testing.
-
-## Parser comparison
-
-The raw test sentences were parsed using each model. For the Berkeley parser, the following command line was used:
-
-```
-python src/main.py parse --model-path-base models/berkeley/en_bert_sfg_dev=95.79.pt --input-path data/sfgbank-split-text/sfgbank-test.txt --output-path data/sfgbank-parsed/berkeley/sfgbank-test-parsed.txt
-```
-
-The output was further transformed using StanfordNLP's constituencies to dependencies and spaCy's CoNLL to JSON converters (see "Conversion of constituency Penn Treebank format to dependency CoNLL format" and "Conversion of dependency CoNLL format to spaCy's JSON format" above). 
-
-The following script was used for parsing the test sentences with spaCy's parser and converting them to the appropriate JSON format.
+Convert the graphs to phrase-structure trees, using a specific strategy to encode ellipsis.
 
 Usage:
 ```
-python spacy_parse.py -input-file 'path to txt file containing the raw text to parse' -output-file 'path to the file where to save the output of the parser' -model 'path to the directory containing spacy's trained model'
+python preprocessing/graph2tree.py [OPTIONS] INPUT_DIR OUTPUT_DIR
 ```
 
+| Argument        | Type     | Description                                                                      | Default     |
+|-----------------|----------|----------------------------------------------------------------------------------|-------------|
+| INPUT_DIR       | Required | Path to the directory containing the dataset                                     | -           |
+| OUTPUT_DIR      | Required | Path to the directory where to save the trees                                    | -           |
+| --strategy TEXT | Optional | Strategy for encoding ellipsis: start / start-without-pos / end / end-extra-node | end-extra-node |
 Example:
 ```
-python spacy_parse.py -input-file data/sfgbank-split-text/sfgbank-test.txt -output-file data/sfgbank-parsed/spacy/sfgbank-test-parsed.json -model models/spacy/full/model-best/
+python preprocessing/graph2tree.py data/graphs data/trees-end-extra-node --strategy end-extra-node
 ```
 
-The two parsers were evaluated on the dependencies task, using the `eval.py` script. 
+## Training
+
+Train the Berkeley parser with the trees encoding ellipsis.
+
+```
+python src/main.py train --use-bert --model-path-base models/end-extra-node --bert-model "bert-large-uncased" --num-layers 2 --learning-rate 0.00005 --batch-size 32 --eval-batch-size 16 --subbatch-max-tokens 500 --train-path data/end-extra-node/train.txt --dev-path data/end-extra-node/dev.txt --predict-tags
+```
+
+## Parsing
+
+Parse the test sentences with the trained model.
+
+```
+python src/main.py parse --model-path-base models/end-extra-node/_dev\=93.12.pt --input-path data/strings/test.txt --output-path data/end-extra-node-predicted/test.txt --eval-batch-size 16
+```
+
+## Postprocessing
+
+Convert the predicted trees to graphs, recovering ellipsis with the chosen strategy.
 
 Usage:
 ```
-python eval/eval.py -predicted 'path to the json file containing the predictions' -gold 'path to the json file containing the gold data'
+python postprocessing/graph2tree.py [OPTIONS] INPUT_DIR OUTPUT_DIR
 ```
+
+| Argument        | Type     | Description                                                                      | Default     |
+|-----------------|----------|----------------------------------------------------------------------------------|-------------|
+| INPUT_DIR       | Required | Path to the directory containing the dataset                                     | -           |
+| OUTPUT_DIR      | Required | Path to the directory where to save the trees                                    | -           |
+| --strategy TEXT | Optional | Strategy for encoding ellipsis: start / start-without-pos / end / end-extra-node | end-extra-node |
 
 Example:
 ```
-python eval/eval.py -predicted data/sfgbank-parsed/spacy/sfgbank-test-parsed.json -gold data/sfgbank-split-json/sfgbank-test.json 
+python postprocessing/graph2tree.py data/trees-end-extra-node-predicted data/graphs-end-extra-node-predicted --strategy end-extra-node
 ```
 
-These were the scores achieved by each parser:
+## Evaluation
 
-|          | UAS   | LAS   |
-|----------|-------|-------|
-| Berkeley | 95.57 | 93.99 |
-| spaCy    | 91.99 | 89.84 |
+Evaluate the predicted graphs. To avoid alignment issues, the graphs are evaluated as dependencies.
+
+Usage:
+```
+python eval/eval.py GOLD_FILE PREDICTED_FILE
+```
+
+| Argument       | Type     | Description                                           | Default |
+|----------------|----------|-------------------------------------------------------|---------|
+| GOLD_FILE      | Required | Path to the file containing the gold test graphs      | -       |
+| PREDICTED_FILE | Required | Path to the file containing the predicted test graphs | -       |
+
+Example:
+```
+python eval/eval.py data/graphs/test.json data/graphs-end-extra-node-predicted/test.json
+```
+
+## Results
+
+Results for all edges, non-ellipsed edges and ellipsed-edges.
+
+| All               | UP    | UR    | UF    | LP    | LR    | LF    |
+|-------------------|-------|-------|-------|-------|-------|-------|
+| start             | 86.49 | 86.49 | 86.49 | 85.13 | 85.13 | 85.13 |
+| start-without-pos | 86.6  | 86.6  | 86.6  | 85.21 | 85.21 | 85.21 |
+| end               | 87.67 | 87.67 | 87.67 | 86.09 | 86.09 | 86.09 |
+| end-extra-node    | 88.82 | 88.82 | 88.82 | 87.52 | 87.52 | 87.52 |
+
+| Ellipsed          | UP    | UR    | UF    | LP    | LR    | LF    |
+|-------------------|-------|-------|-------|-------|-------|-------|
+| start             | 65.55 | 44.48 | 53.0  | 65.07 | 44.16 | 52.61 |
+| start-without-pos | 65.45 | 40.58 | 50.1  | 64.92 | 40.26 | 49.7  |
+| end               | 75.6  | 61.36 | 67.74 | 75.6  | 61.36 | 67.74 |
+| end-extra-node    | 76.95 | 60.71 | 67.88 | 76.95 | 60.71 | 67.88 |
+
+| Non-ellipsed      | UP    | UR    | UF    | LP    | LR    | LF    |
+|-------------------|-------|-------|-------|-------|-------|-------|
+| start             | 90.82 | 90.82 | 90.82 | 89.37 | 89.37 | 89.37 |
+| start-without-pos | 91.01 | 91.01 | 91.01 | 89.5  | 89.5  | 89.5  |
+| end               | 89.77 | 89.77 | 89.77 | 88.15 | 88.15 | 88.15 |
+| end-extra-node    | 91.11 | 91.11 | 91.11 | 89.73 | 89.73 | 89.73 |
+
+## Comparison to previous SFG parsing work
+
+We used the same evaluation script and corpora from Costetchi (2020) to compare its performance with that of our system. To evaluate our system, we preprocessed the text with `previous_work_comparison/tokenize.py`, parsed the constituency trees and extracted constituent spans from them with `previous_work_comparison/ptb2mcg.py`. We deleted duplicates from the gold annotated spans and the spans predicted by Costetchi's parser with `previous_work_comparison/simplify_gold.py`. We only considered constituency annotations and ignored the SFG features as well as ellipsis recovery, since Costetchi's system does not handle it. Below are the results for the OE and OCD corpora and an average of both.
+
+| OE corpus        | Precision | Recall | FScore |
+|------------------|-----------|--------|--------|
+| Costetchi (2020) | 50.16     | 97.15  | 65.73  |
+| Our system       | 54.42     | 93.75  | 68.75  |
+
+| OCD corpus       | Precision | Recall | FScore |
+|------------------|-----------|--------|--------|
+| Costetchi (2020) | 61.45     | 90.67  | 73.25  |
+| Our system       | 76.32     | 94.61  | 84.48  |
+
+| Average          | Precision | Recall | FScore |
+|------------------|-----------|--------|--------|
+| Costetchi (2020) | 55.81     | 93.91  | 69.49  |
+| Our system       | 65.36     | 94.18  | 76.61  |

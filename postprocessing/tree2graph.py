@@ -93,56 +93,7 @@ def get_basic_graph(tree, strategy):
         if node["id"] in parent_clauses:
             node["parent_clause"] = parent_clauses[node["id"]]
         else:
-            node["parent_clause"] = 0 # IS 0 THE BEST CHOICE HERE?
-
-    return graph
-
-
-def add_ellipsis_start_no_pos(graph):
-    """
-    Add ellipsed edges to a basic graph, decoding ellipsis with the starting node (no pos) strategy.
-    """
-
-    for node in graph:
-        parent = node["parent"]
-        start_tags = node["start_tags"]
-        end_tags = node["end_tags"]
-        ellipsed_nodes = []
-        if len(start_tags) > 0:
-            for ellipsed_node in start_tags:
-                ellipsed_node_i = "".join(re.findall(r"\d+", ellipsed_node))
-                ellipsed_node_tag = re.sub(ellipsed_node_i, "", ellipsed_node)
-                # find the ellipsed node
-                tag_i = 0
-                for node2 in graph:
-                    if node2["tag"] == ellipsed_node_tag:
-                        if tag_i == int(ellipsed_node_i):
-                            ellipsed_nodes.append(node2["id"])
-                            break
-                        else:
-                            tag_i += 1       
-        for ellipsed_node in ellipsed_nodes:
-            next_non_terminal_i = node["id"] + 1 
-            if node["tag"] == "VG" and graph[ellipsed_node]["tag"] in ["VG", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "TO", "MD", "RB"]:
-                vg_exception = True
-            else:
-                vg_exception = False
-            if vg_exception == False:
-                while next_non_terminal_i < len(graph) and graph[next_non_terminal_i]["terminal"] == "yes":
-                    next_non_terminal_i += 1
-            if next_non_terminal_i < len(graph):
-                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
-                    ellipsed_parent = graph[next_non_terminal_i]["parent"]
-                else: 
-                    ellipsed_parent = graph[node["id"]]["parent_clause"]
-            else:
-                ellipsed_parent = graph[node["id"]]["parent_clause"]         
-            graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
-            # add ellipsed children information
-            graph[ellipsed_parent]["children"].append(ellipsed_node)
-        # add non-ellipsed children information
-        if node["id"] != 0:
-            graph[parent]["children"].append(node["id"])
+            node["parent_clause"] = 0
 
     return graph
 
@@ -172,6 +123,55 @@ def add_ellipsis_start(graph):
                             tag_i += 1       
         for ellipsed_node in ellipsed_nodes:
             next_non_terminal_i = node["id"] + 1 
+            if next_non_terminal_i < len(graph):
+                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
+                    ellipsed_parent = graph[next_non_terminal_i]["parent"]
+                else: 
+                    ellipsed_parent = graph[node["id"]]["parent_clause"]
+            else:
+                ellipsed_parent = graph[node["id"]]["parent_clause"]         
+            graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
+            # add ellipsed children information
+            graph[ellipsed_parent]["children"].append(ellipsed_node)
+        # add non-ellipsed children information
+        if node["id"] != 0:
+            graph[parent]["children"].append(node["id"])
+
+    return graph
+
+
+def add_ellipsis_start_without_pos(graph):
+    """
+    Add ellipsed edges to a basic graph, decoding ellipsis with the starting node (without pos) strategy.
+    """
+
+    for node in graph:
+        parent = node["parent"]
+        start_tags = node["start_tags"]
+        end_tags = node["end_tags"]
+        ellipsed_nodes = []
+        if len(start_tags) > 0:
+            for ellipsed_node in start_tags:
+                ellipsed_node_i = "".join(re.findall(r"\d+", ellipsed_node))
+                ellipsed_node_tag = re.sub(ellipsed_node_i, "", ellipsed_node)
+                # find the ellipsed node
+                tag_i = 0
+                for node2 in graph:
+                    if node2["tag"] == ellipsed_node_tag:
+                        if tag_i == int(ellipsed_node_i):
+                            ellipsed_nodes.append(node2["id"])
+                            break
+                        else:
+                            tag_i += 1       
+        for ellipsed_node in ellipsed_nodes:
+            next_non_terminal_i = node["id"] + 1 
+            if node["tag"] == "VG" and graph[ellipsed_node]["tag"] in ["VG", "VB", "VBD", "VBG", "VBN", "VBP", "VBZ", "TO", "MD", "RB"]:
+                vg_exception = True
+            else:
+                vg_exception = False
+            if vg_exception == False:
+                while next_non_terminal_i < len(graph) and graph[next_non_terminal_i]["terminal"] == "yes":
+                    next_non_terminal_i += 1
             if next_non_terminal_i < len(graph):
                 if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
                     ellipsed_parent = graph[next_non_terminal_i]["parent"]
@@ -253,6 +253,8 @@ def convert(input_file, strategy):
         # add secondary edges with a specific strategy for decoding ellipsis
         if strategy == "start":
             graph = add_ellipsis_start(graph)
+        elif strategy == "start-without-pos":
+            graph = add_ellipsis_start_without_pos(graph)
         elif strategy == "end":
             graph = add_ellipsis_end(graph)
         elif strategy == "end-extra-node":
@@ -266,7 +268,7 @@ def convert(input_file, strategy):
 def main(
     input_dir: Path, 
     output_dir: Path, 
-    strategy: str = typer.Option("", help="Strategy for encoding ellipsis, can be starting_node, ending_node or both_nodes."),
+    strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start / start-without-pos / end / end-extra-node"),
     ):
 
     for input_file in input_dir.iterdir():
