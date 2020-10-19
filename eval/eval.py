@@ -229,9 +229,9 @@ def is_punct(node):
         return False
 
 
-def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False):
+def score(gold_deps, predicted_deps, subtask, ellipsis_only=False, exclude_ellipsis=False):
     """
-    Score a graph.
+    Score graphs.
     """
 
     if ellipsis_only:
@@ -263,10 +263,16 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
             # count total of correct nodes
             if ellipsis_only:
                 if len(gold_node["ellipsed_dep_heads"]) > 0:
-                    if ellipsed_edges_are_correct(gold_node, predicted_node):
-                        correct_unlabeled += 1
-                        if ellipsed_labels_are_correct(gold_node, predicted_node):
-                            correct_labeled += 1
+                    # for the easier subtask, just check that the number of ellipsed heads is the same for gold and predicted
+                    if subtask:
+                        if len(gold_node["ellipsed_dep_heads"]) == len(predicted_node["ellipsed_dep_heads"]):
+                            correct_unlabeled += 1
+                            correct_labeled += 1                    
+                    else:
+                        if ellipsed_edges_are_correct(gold_node, predicted_node):
+                            correct_unlabeled += 1
+                            if ellipsed_labels_are_correct(gold_node, predicted_node):
+                                correct_labeled += 1
                     # inspect wrong nodes
 #                    else:
 #                        print("\n#############\n")
@@ -282,10 +288,15 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
                     if label_is_correct(gold_node, predicted_node):
                         correct_labeled += 1
             else:
-                if edge_is_correct(gold_node, predicted_node) and ellipsed_edges_are_correct(gold_node, predicted_node):
-                    correct_unlabeled += 1
-                    if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
-                        correct_labeled += 1           
+                if subtask: 
+                    if edge_is_correct(gold_node, predicted_node) and len(gold_node["ellipsed_dep_heads"]) == len(predicted_node["ellipsed_dep_heads"]):
+                        correct_unlabeled += 1
+                        correct_labeled += 1     
+                else:                   
+                    if edge_is_correct(gold_node, predicted_node) and ellipsed_edges_are_correct(gold_node, predicted_node):
+                        correct_unlabeled += 1
+                        if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
+                            correct_labeled += 1                
 
     unlabeled_p = correct_unlabeled / total_predicted_nodes
     unlabeled_r = correct_unlabeled / total_gold_nodes
@@ -305,7 +316,8 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
 
 def main(
     gold_file: Path, 
-    predicted_file: Path, 
+    predicted_file: Path,
+    subtask: bool = typer.Option(False, help= "Whether to evaluate for an easier subtask") 
     ):
 
     gold_graphs = get_graphs(gold_file)
@@ -314,9 +326,9 @@ def main(
     predicted_graphs = get_graphs(predicted_file)
     predicted_deps = extract_deps(predicted_graphs)
 
-    score(gold_deps, predicted_deps)
-    score(gold_deps, predicted_deps, ellipsis_only=True)
-    score(gold_deps, predicted_deps, exclude_ellipsis=True)
+    score(gold_deps, predicted_deps, subtask)
+    score(gold_deps, predicted_deps, subtask, ellipsis_only=True)
+    score(gold_deps, predicted_deps, subtask, exclude_ellipsis=True)
 
 
 if __name__ == "__main__":

@@ -35,7 +35,7 @@ def remove_extra_nodes(tree):
             if type(subtree) == str:
                 children.append(subtree)
             else:
-                if "end" in subtree.label():
+                if "end" in subtree.label() or "start" in subtree.label():
                     child = [sst for sst in subtree][0]
                     children.append(Tree(subtree.label(), [sst for sst in child]))
                 else:
@@ -55,7 +55,7 @@ def get_basic_graph(tree, strategy):
 
     t = ParentedTree.fromstring(tree)
 
-    if strategy == "end-extra-node":
+    if strategy in ["end-extra-node", "start-end-extra-node"]:
         t = remove_extra_nodes(t)
         t = ParentedTree.convert(t)
 
@@ -237,6 +237,41 @@ def add_ellipsis_end(graph):
     return graph
 
 
+def add_ellipsis_start_end_extra_node(graph):
+    """
+    Add ellipsed edges to a basic graph, decoding ellipsis with the start-end-extra-node strategy.
+    """
+
+    for node in graph:
+        parent = node["parent"]
+        start_tags = node["start_tags"]
+        ellipsed_nodes = []
+        if len(start_tags) > 0:
+            for start_id in start_tags:
+                # find the ellipsed node
+                for node2 in graph:
+                    if start_id in node2["end_tags"]:
+                        ellipsed_nodes.append(node2["id"])
+                        break      
+        for ellipsed_node in ellipsed_nodes:
+            next_non_terminal_i = node["id"] + 1 
+            if next_non_terminal_i < len(graph):
+                if graph[next_non_terminal_i]["parent_clause"] == graph[node["id"]]["parent_clause"]:
+                    ellipsed_parent = graph[next_non_terminal_i]["parent"]
+                else: 
+                    ellipsed_parent = graph[node["id"]]["parent_clause"]
+            else:
+                ellipsed_parent = graph[node["id"]]["parent_clause"]         
+            graph[ellipsed_node]["ellipsed_parents"].append(graph[ellipsed_parent]["id"])
+            # add ellipsed children information
+            graph[ellipsed_parent]["children"].append(ellipsed_node)
+        # add non-ellipsed children information
+        if node["id"] != 0:
+            graph[parent]["children"].append(node["id"])
+
+    return graph
+
+
 def convert(input_file, strategy):
     """
     Convert phrase-structure trees to graphs.
@@ -259,6 +294,8 @@ def convert(input_file, strategy):
             graph = add_ellipsis_end(graph)
         elif strategy == "end-extra-node":
             graph = add_ellipsis_end(graph)
+        elif strategy == "start-end-extra-node":
+            graph = add_ellipsis_start_end_extra_node(graph)
 
         sents["sents"].append({"graph": graph})  
        
@@ -268,7 +305,7 @@ def convert(input_file, strategy):
 def main(
     input_dir: Path, 
     output_dir: Path, 
-    strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start / start-without-pos / end / end-extra-node"),
+    strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start, start-without-pos, end, end-extra-node, start-end-extra-node"),
     ):
 
     for input_file in input_dir.iterdir():
