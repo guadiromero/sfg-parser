@@ -365,6 +365,23 @@ def traverse_graph_start_end_extra_node(graph):
     return tree
 
 
+def subtask_prune(tree):
+    """
+    Prune the ellipsis labels of a tree for an easier subtask,
+    without any other information in the ellipsis tags besides the "start" and "end" markers.
+    """
+
+    for st in tree.subtrees():
+        if "start" in st.label():
+            new_label = st.label().split("start")[0] + "start"
+            st.set_label(new_label)
+        if "end" in st.label():
+            new_label = st.label().split("end")[0] + "end"
+            st.set_label(new_label)
+
+    return tree
+
+
 def get_string(tree):
     """
     Get string representation from a tree.
@@ -376,7 +393,7 @@ def get_string(tree):
     return tree_str_flat
 
 
-def convert_treebank(input_dir, output_dir, strategy):
+def convert_treebank(input_dir, output_dir, strategy, subtask):
     """
     Convert a treebank of graphs to phrase-structure trees.
     """
@@ -398,6 +415,8 @@ def convert_treebank(input_dir, output_dir, strategy):
                         tree = traverse_graph_end_extra_node(graph)
                     elif strategy == "start-end-extra-node":
                         tree = traverse_graph_start_end_extra_node(graph)
+                    if subtask:
+                        tree = subtask_prune(tree)
                     tree_string = get_string(tree)
                     trees += tree_string + "\n"
         with open(output_dir.joinpath(f.name).with_suffix(".txt"), "w+") as tree_files:
@@ -408,9 +427,10 @@ def main(
     input_dir: Path, 
     output_dir: Path, 
     strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start, start-without-pos, end, end-extra-node, start-end-extra-node"),
+    subtask: bool = typer.Option(False, help= "Whether to make the conversion for an easier subtask") 
     ):
     
-    convert_treebank(input_dir, output_dir, strategy)
+    convert_treebank(input_dir, output_dir, strategy, subtask=True)
 
 
 if __name__ == "__main__":
