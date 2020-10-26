@@ -229,7 +229,63 @@ def is_punct(node):
         return False
 
 
-def score(gold_deps, predicted_deps, subtask, ellipsis_only=False, exclude_ellipsis=False):
+def sdp2deps(sdp_file):
+    """
+    """
+
+    with open(sdp_file, "r") as f:
+        lines = f.readlines()
+
+    deps = []
+    preds = []
+
+    dep_sent = []
+    pred_sent = []
+    for line in lines:
+        if line.startswith("#"):
+            continue
+        if line == "\n":
+            deps.append(dep_sent)
+            dep_sent = []            
+            pred_dict = {}
+            for index, pred in enumerate(pred_sent):
+                pred_dict[index] = pred
+            preds.append(pred_dict)
+            pred_sent = []
+            break
+        else:
+            splitted_line = line.strip("\n").split("\t")
+            token_id = int(splitted_line[0]) - 1
+            token = splitted_line[1]
+            graph_label = "_"
+            args = splitted_line[7:]
+            ellipsed_dep_heads = []
+            ellipsed_dep_labels = []
+            if splitted_line[5] == "+":
+                pred_sent.append(token_id)
+            for index, arg in enumerate(args):
+                if arg == "_":
+                    continue
+                elif "ellipsis" in arg:
+                    ellipsed_dep_heads.append(index)
+                    ellipsed_dep_labels.append(arg.split("ellipsis")[0])
+                else: 
+                    dep_head = index
+                    dep_label = arg.split("ellipsis")[0]                  
+            dep = {"token_id": token_id, "token": token, "dep_head": dep_head, "dep_label": dep_label, "ellipsed_dep_heads": ellipsed_dep_heads, "ellipsed_dep_labels": ellipsed_dep_labels, "graph_label": graph_label}
+            dep_sent.append(dep)
+
+    # replace args with dependency heads
+    for dep_sent, pred_dict in zip(deps, preds):
+        for token in dep_sent:
+            token["dep_head"] = pred_dict[token["dep_head"]]
+            for index, ellipsed_dep_head in enumerate(token["ellipsed_dep_heads"]):
+                token["ellipsed_dep_heads"][index] = pred_dict[ellipsed_dep_head]
+
+    return deps
+
+
+def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False):
     """
     Score graphs.
     """
@@ -262,17 +318,11 @@ def score(gold_deps, predicted_deps, subtask, ellipsis_only=False, exclude_ellip
                 total_predicted_nodes += 1
             # count total of correct nodes
             if ellipsis_only:
-                if len(gold_node["ellipsed_dep_heads"]) > 0:
-                    # for the easier subtask, just check that the number of ellipsed heads is the same for gold and predicted
-                    if subtask:
-                        if len(gold_node["ellipsed_dep_heads"]) == len(predicted_node["ellipsed_dep_heads"]):
-                            correct_unlabeled += 1
-                            correct_labeled += 1                    
-                    else:
-                        if ellipsed_edges_are_correct(gold_node, predicted_node):
-                            correct_unlabeled += 1
-                            if ellipsed_labels_are_correct(gold_node, predicted_node):
-                                correct_labeled += 1
+                if len(gold_node["ellipsed_dep_heads"]) > 0:                 
+                    if ellipsed_edges_are_correct(gold_node, predicted_node):
+                        correct_unlabeled += 1
+                        if ellipsed_labels_are_correct(gold_node, predicted_node):
+                            correct_labeled += 1
                     # inspect wrong nodes
 #                    else:
 #                        print("\n#############\n")
@@ -287,16 +337,11 @@ def score(gold_deps, predicted_deps, subtask, ellipsis_only=False, exclude_ellip
                     correct_unlabeled += 1
                     if label_is_correct(gold_node, predicted_node):
                         correct_labeled += 1
-            else:
-                if subtask: 
-                    if edge_is_correct(gold_node, predicted_node) and len(gold_node["ellipsed_dep_heads"]) == len(predicted_node["ellipsed_dep_heads"]):
-                        correct_unlabeled += 1
-                        correct_labeled += 1     
-                else:                   
-                    if edge_is_correct(gold_node, predicted_node) and ellipsed_edges_are_correct(gold_node, predicted_node):
-                        correct_unlabeled += 1
-                        if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
-                            correct_labeled += 1                
+            else:                 
+                if edge_is_correct(gold_node, predicted_node) and ellipsed_edges_are_correct(gold_node, predicted_node):
+                    correct_unlabeled += 1
+                    if label_is_correct(gold_node, predicted_node) and ellipsed_labels_are_correct(gold_node, predicted_node):
+                        correct_labeled += 1                
 
     unlabeled_p = correct_unlabeled / total_predicted_nodes
     unlabeled_r = correct_unlabeled / total_gold_nodes
@@ -317,18 +362,27 @@ def score(gold_deps, predicted_deps, subtask, ellipsis_only=False, exclude_ellip
 def main(
     gold_file: Path, 
     predicted_file: Path,
-    subtask: bool = typer.Option(False, help= "Whether to evaluate for an easier subtask") 
     ):
 
     gold_graphs = get_graphs(gold_file)
     gold_deps = extract_deps(gold_graphs)
 
-    predicted_graphs = get_graphs(predicted_file)
-    predicted_deps = extract_deps(predicted_graphs)
+    if predicted_file.suffix == ".json":
+        predicted_graphs = get_graphs(predicted_file)
+        predicted_deps = extract_deps(predicted_graphs)
+    else:
+        predicted_deps = sdp2deps(predicted_file)
+        # DEBUG
+#        for gold_dep, predicted_dep in zip(gold_deps, predicted_deps):
+#            for index, token in enumerate(gold_dep):
+#                print(token)
+#                print(predicted_dep[index])
+#                print("\n")
+#            print("\n")
 
-    score(gold_deps, predicted_deps, subtask)
-    score(gold_deps, predicted_deps, subtask, ellipsis_only=True)
-    score(gold_deps, predicted_deps, subtask, exclude_ellipsis=True)
+    score(gold_deps, predicted_deps)
+    score(gold_deps, predicted_deps, ellipsis_only=True)
+    score(gold_deps, predicted_deps, exclude_ellipsis=True)
 
 
 if __name__ == "__main__":

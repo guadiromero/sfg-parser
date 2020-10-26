@@ -168,6 +168,7 @@ def find_dep_head(graph, parent, terminal_id):
 
 def convert(deps):
     """
+    Convert dependencies to the Semantic Dependendency Parsing format.
     """
 
     sdp_deps = []
@@ -179,7 +180,7 @@ def convert(deps):
         for token in sent:
             if token["dep_head"] not in preds:
                 preds.append(token["dep_head"])
-        args = {index+1:token_id for index, token_id in enumerate(preds)}
+        preds = sorted(preds)
         # get sdp columns
         for token in sent:            
             id_ = str(int(token["token_id"]) + 1)
@@ -190,17 +191,17 @@ def convert(deps):
             pred = "+" if token["token_id"] in preds else "-"
             frame = "_"
             sdp_token = [id_, form, lemma, pos, top, pred, frame]
-            for arg in args:
-                if args[arg] == token["dep_head"]:
+            #print(preds)
+            for pred in preds:
+                if pred == token["dep_head"]:
                     sdp_token.append(token["dep_label"])
-                elif args[arg] in token["ellipsed_dep_heads"]:
+                elif pred in token["ellipsed_dep_heads"]:
                     for index, head in enumerate(token["ellipsed_dep_heads"]):
-                        if args[arg] == head:
+                        if pred == head:
                             sdp_token.append(token["ellipsed_dep_labels"][index] + "ellipsis")
                 else:
                     sdp_token.append("_")
             sdp_sent.append("\t".join(sdp_token))
-        sdp_sent.append("\n")
         sdp_deps.append(sdp_sent)
 
     return sdp_deps
@@ -218,8 +219,8 @@ def main(
         with open(output_dir.joinpath(f.name).with_suffix(".txt"), "w+") as sdp_file:
             for sent in sdp_deps:
                 for line in sent:
-                    sdp_file.write(line)
-                    sdp_file.write("\n")
+                    sdp_file.write(line + "\n")
+                sdp_file.write("\n")
 
 
 if __name__ == "__main__":
