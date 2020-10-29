@@ -55,13 +55,16 @@ def get_basic_graph(tree, strategy):
 
     t = ParentedTree.fromstring(tree)
 
-    if strategy in ["end-extra-node", "start-end-extra-node"]:
+    if strategy in ["end-extra-node", "start-end-extra-node", "start-end-extra-node-heuristic"]:
         t = remove_extra_nodes(t)
         t = ParentedTree.convert(t)
 
     graph = []
     tree_positions = {}
     parent_clauses = {}
+
+    start_index = 0
+    end_index = 0
 
     for index, st in enumerate(t.subtrees()):
         tree_positions[st.treeposition()] = index # keep track of indexes & tree positions
@@ -71,6 +74,25 @@ def get_basic_graph(tree, strategy):
         node["parent"] = tree_positions[st.parent().treeposition()] if st.parent() != None else 0
         node["ellipsed_parents"] = []
         const_tag, start_tags, end_tags = split_tag(st.label())
+        # assign indexes for start and end tags if they don't have any (heuristic)
+        if const_tag == "CL":
+            start_index = 0
+        if strategy == "start-end-extra-node-heuristic":
+#        for tag_i, tag in enumerate(start_tags):
+#            if tag == "":
+#                start_tags[tag_i] = start_index
+#                start_index += 1
+#        for tag_i, tag in enumerate(end_tags):
+#            if tag == "":
+#                end_tags[tag_i] = end_index
+#                end_index += 1
+            for tag_i, tag in enumerate(start_tags):
+                start_tags[tag_i] = start_index
+                start_index += 1
+            for tag_i, tag in enumerate(end_tags):
+                end_tags[tag_i] = end_index
+            if len(end_tags) > 0:
+                end_index += 1
         node["tag"] = const_tag
         node["start_tags"] = start_tags
         node["end_tags"] = end_tags
@@ -296,6 +318,8 @@ def convert(input_file, strategy):
             graph = add_ellipsis_end(graph)
         elif strategy == "start-end-extra-node":
             graph = add_ellipsis_start_end_extra_node(graph)
+        elif strategy == "start-end-extra-node-heuristic":
+            graph = add_ellipsis_start_end_extra_node(graph)
 
         sents["sents"].append({"graph": graph})  
        
@@ -305,7 +329,7 @@ def convert(input_file, strategy):
 def main(
     input_dir: Path, 
     output_dir: Path, 
-    strategy: str = typer.Option("end-extra-node", help="Strategy for encoding ellipsis: start, start-without-pos, end, end-extra-node, start-end-extra-node"),
+    strategy: str = typer.Option("start-end-extra-node-heuristic", help="Strategy for encoding ellipsis: start, start-without-pos, end, end-extra-node, start-end-extra-node"),
     ):
 
     for input_file in input_dir.iterdir():

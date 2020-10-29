@@ -365,6 +365,26 @@ def traverse_graph_start_end_extra_node(graph):
     return tree
 
 
+def traverse_graph_start_end_extra_node_heuristic(graph):  
+    """
+    Convert a single graph to a phrase-structure tree, 
+    encoding ellipsis by wrapping the start and ending nodes of the ellipsis edge with extra nodes.
+
+    Example: (CLX (CL (NGend (PRP They)) (VG (VBDend were) (VBG drinking)) (NG (NN tea))) (CL (CONJG (CCstart (CC and))) (VGstart (VG (VBG eating)) (NG (NN scons))))
+    """
+
+    tree = traverse_graph_start_end_extra_node(graph)
+
+    # delete the indexes
+
+    for st in tree.subtrees():
+        if "start" in st.label() or "end" in st.label():
+            new_label = re.sub(r'[0-9]+', '', st.label())
+            st.set_label(new_label)
+
+    return tree
+
+
 def subtask_prune(tree):
     """
     Prune the ellipsis labels of a tree for an easier subtask,
@@ -415,6 +435,8 @@ def convert_treebank(input_dir, output_dir, strategy, subtask):
                         tree = traverse_graph_end_extra_node(graph)
                     elif strategy == "start-end-extra-node":
                         tree = traverse_graph_start_end_extra_node(graph)
+                    elif strategy == "start-end-extra-node-heuristic":
+                        tree = traverse_graph_start_end_extra_node_heuristic(graph)                        
                     if subtask:
                         tree = subtask_prune(tree)
                     tree_string = get_string(tree)
@@ -430,7 +452,7 @@ def main(
     subtask: bool = typer.Option(False, help= "Whether to make the conversion for an easier subtask") 
     ):
     
-    convert_treebank(input_dir, output_dir, strategy, subtask=True)
+    convert_treebank(input_dir, output_dir, strategy, subtask)
 
 
 if __name__ == "__main__":

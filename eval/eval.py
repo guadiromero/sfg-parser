@@ -252,7 +252,6 @@ def sdp2deps(sdp_file):
                 pred_dict[index] = pred
             preds.append(pred_dict)
             pred_sent = []
-            break
         else:
             splitted_line = line.strip("\n").split("\t")
             token_id = int(splitted_line[0]) - 1
@@ -350,6 +349,11 @@ def score(gold_deps, predicted_deps, ellipsis_only=False, exclude_ellipsis=False
     labeled_r = correct_labeled / total_gold_nodes
     labeled_f = 2 * ((labeled_p * labeled_r) / (labeled_p + labeled_r))
 
+#    print("Correct unlabeled: " + str(correct_unlabeled))
+#    print("Correct labeled: " + str(correct_labeled))
+#    print("Total gold: " + str(total_gold_nodes))
+#    print("Total predicted: " + str(total_predicted_nodes))
+
     print("Unlabeled Precision: " + str(round(unlabeled_p * 100, 2)))
     print("Unlabeled Recall: " + str(round(unlabeled_r * 100, 2)))
     print("Unlabeled F1: " + str(round(unlabeled_f * 100, 2)))
@@ -383,6 +387,8 @@ def main(
     score(gold_deps, predicted_deps)
     score(gold_deps, predicted_deps, ellipsis_only=True)
     score(gold_deps, predicted_deps, exclude_ellipsis=True)
+
+#    print(len(gold_deps), len(predicted_deps))
 
 
 if __name__ == "__main__":
