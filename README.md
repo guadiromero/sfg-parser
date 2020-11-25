@@ -1,5 +1,11 @@
 # Transformations for tractable SFG parsing
 
+## Overview
+
+This repository contains the code that was used to train and evaluate the models for my master thesis at Saarland University.
+
+**Abstract:** The need to build syntactic parsers with improved usability have fueled a renewed interest in Systemic Functional Grammar (SFG). Among its key features, SFG presents a flatter constituency structure, makes ellipsis explicit and appends functional tags to its constituents. We concentrate our efforts on the first two aspects as they are the most challenging to predict, and present the task of SFG constituency parsing and ellipsis resolution, including a dataset and an evaluation method. We represent ellipsis with secondary edges that form directed acyclic graphs (DAGs) and propose a method for predicting these graphs via tractable DAG to tree transformations. The suggested strategies remove the secondary edges and encode their information in the constituency labels, so that standard tree parsers can be used and the original DAG representations can be later recovered. Experiments with different transformations show that this is a viable approach and that some representations are more learnable than others. Our system outperforms the previous work on SFG parsing and handles a wider arrange of ellipsis types, a feature with potential applications inside and outside the SFG domain.
+
 ## Requirements
 
 Install [Typer](https://typer.tiangolo.com/) and [NLTK](https://www.nltk.org/).
@@ -19,7 +25,7 @@ Build the ellipsis corpus by converting the original SFGbank to graphs and using
 - Development: Section 22 of the WSJ
 - Testing: Section 23 of the WSJ
 
-The graphs contain main edges and secondary edges pointing to ellipsed constituents.
+The graphs contain main edges and secondary edges pointing to elided constituents.
 
 Usage: 
 ```
@@ -114,7 +120,7 @@ python eval/eval.py data/graphs/test.json data/graphs-end-extra-node-predicted/t
 
 ## Results
 
-Results for all edges, non-ellipsed edges and ellipsed-edges.
+Results for all edges, non-elided edges and elided-edges.
 
 | All edges                         | UP    | UR    | UF    | LP    | LR    | LF    |
 |-----------------------------------|-------|-------|-------|-------|-------|-------|
@@ -148,7 +154,7 @@ Results for all edges, non-ellipsed edges and ellipsed-edges.
 
 ## Comparison to previous SFG parsing work
 
-We used the same evaluation script and corpora from Costetchi (2020) to compare its performance with that of our system. To evaluate our system, we preprocessed the text with `previous_work_comparison/tokenize.py`, parsed the constituency trees and extracted constituent spans from them with `previous_work_comparison/ptb2mcg.py`. We deleted duplicates from the gold annotated spans and the spans predicted by Costetchi's parser with `previous_work_comparison/simplify_gold.py`. We only considered constituency annotations and ignored the SFG features as well as ellipsis recovery, since Costetchi's system does not handle it. Below are the results for the OE and OCD corpora and an average of both.
+We used the same evaluation method and corpora from [Costetchi (2020)](https://media.suub.uni-bremen.de/handle/elib/4281) to compare its performance with that of our system. To evaluate our system, we preprocessed the text with `previous_work_comparison/tokenize.py`, parsed the constituency trees and extracted constituent spans from them with `previous_work_comparison/ptb2mcg.py`. We deleted duplicates from the gold annotated spans and the spans predicted by Costetchi's parser with `previous_work_comparison/simplify_gold.py`. We only considered constituency annotations and ignored the SFG features as well as ellipsis recovery, since Costetchi's system does not handle it. Below are the results for the OE and OCD corpora and an average of both.
 
 | OE corpus        | Precision | Recall | FScore |
 |------------------|-----------|--------|--------|
