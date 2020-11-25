@@ -252,6 +252,18 @@ def xml2graph(root, text, tag_map):
     # build sentence string (without duplication of ellipsis as in the original SFGbank)
     string = " ".join(terminals)
 
+    prnt = False
+    if ellipsis:
+        for node in graph:
+            if len(node["ellipsed_parents"]) > 0 and node["function_label"] == "object":
+                prnt = True
+                print("ellipsed: " + str(node["id"]))
+    if prnt:
+        print(string)
+        for node in graph:
+            print(node)
+        print("\n")
+
     return string, graph, ellipsis, bert_len
 
 
